@@ -18,6 +18,8 @@ struct Node{
     Node(): coefficients({0.0, 0.0}){}
     Node(double a, double b): coefficients({a, b}){}
     Node(const std::array<double, 2>& c): coefficients(c){}
+
+    double distance(const Node& other) const;
 };
 
 std::ostream& operator<<(std::ostream& os, const Node& node);
@@ -27,9 +29,9 @@ std::ostream& operator<<(std::ostream& os, const Node& node);
  */
 struct TriangleElements {
     std::array<int, 3> globalNodeId;  // global node ids
-    std::vector<Node>* globalNodeTab; // pointer to the global node table
+    const std::vector<Node>* globalNodeTab; // pointer to the global node table
 
-    TriangleElements(const std::array<int, 3>& nodeId, std::vector<Node>* nodeTab): globalNodeId(nodeId), globalNodeTab(nodeTab){}
+    TriangleElements(const std::array<int, 3>& nodeId, const std::vector<Node>& nodeTab): globalNodeId(nodeId), globalNodeTab(&nodeTab){}
 
     int operator[](int localNodeId) const {
         return globalNodeId[localNodeId];
@@ -42,14 +44,20 @@ std::ostream& operator<<(std::ostream& os, const TriangleElements& elem);
  * @brief Represents a facet in the mesh - elements edges
  */
 struct Facet{
+    const std::vector<Node>* globalNodeTab;
     std::array<int, 2> globalNodeId; // global node ids
     std::array<int, 2> globalElemId; // global element ids
     int identifier; // unique identifier in the mesh
 
     bool isBoundary; // true if the facet is on the boundary of the mesh
 
-    Facet(): globalNodeId({-1, -1}), globalElemId({-1, -1}), identifier(-1), isBoundary(false){}
-    Facet(const std::array<int, 2>& node, const std::array<int, 2>& elem, int id) : identifier(id), isBoundary(false){
+    Facet(): globalNodeId({-1, -1}), globalElemId({-1, -1}), identifier(-1), isBoundary(false), globalNodeTab(nullptr) {}
+    Facet(const std::array<int, 2>& node, const std::array<int, 2>& elem, const std::vector<Node>& nodeTab, int id) : 
+                identifier(id), 
+                isBoundary(false),
+                globalNodeTab(&nodeTab)
+
+    {
         globalNodeId = node;
         globalElemId = elem;
         isBoundary = (globalElemId[1] == -1) || (globalElemId[0] == -1);
@@ -59,6 +67,9 @@ struct Facet{
         globalElemId[local] = global;
         isBoundary = (globalElemId[1] == -1) || (globalElemId[0] == -1);
     }
+
+    double length() const;
+
 };
 
 std::ostream& operator<<(std::ostream& os, const Facet& facet);
@@ -147,5 +158,7 @@ public:
     void printNodes() const;
     void printTriangles() const;
     void printFacets() const;
+
+    double perimeter() const;
 
 };

@@ -5,6 +5,7 @@
 #include <memory>
 #include <functional>
 #include <set>
+#include <cmath>
 #include <unordered_set>
 #include <map>
 #include <unordered_map>
@@ -34,6 +35,15 @@ std::ostream& operator<<(std::ostream& os, const Facet& facet){
 
     os << "Is boundary facet ? " << facet.isBoundary << std::endl;
     return os;
+}
+
+double Node::distance(const Node& other) const{
+    return std::sqrt(std::pow(coefficients[0] - other.coefficients[0], 2) +
+                     std::pow(coefficients[1] - other.coefficients[1], 2));
+}
+
+double Facet::length() const {
+    return (*globalNodeTab)[globalNodeId[0]].distance((*globalNodeTab)[globalNodeId[1]]);
 }
 
 Mesh::Mesh(std::string path) {
@@ -67,7 +77,7 @@ Mesh::Mesh(std::string path) {
             std::getline(meshFile, lines);
         }
 
-        // Extracting elements
+        // Extracting elements (skipping segments)
         while (lines != "$Elements"){
             std::getline(meshFile, lines);
         }
@@ -90,7 +100,7 @@ Mesh::Mesh(std::string path) {
                 int p1, p2, p3;
                 stream >> p1 >> p2 >> p3;
                 const std::array <int, 3> &tab = {--p1, --p2, --p3};
-                tabElements.push_back(TriangleElements(tab, &tabNodes));
+                tabElements.push_back(TriangleElements(tab, tabNodes));
                 nbElements ++;
             }
 
@@ -162,7 +172,7 @@ void Mesh::buildConnectivity() {
             nodeToElements[nodeId[1]].insert(element);
 
             if (facetMap.find(nodeId) == facetMap.end()) {
-                facetMap[nodeId] = Facet(nodeId, {element, -1}, facetId);
+                facetMap[nodeId] = Facet(nodeId, {element, -1}, tabNodes, facetId);
                 globalFacet[localFacet] = facetId;
 
                 // Building nodeToFacets connectivity
@@ -268,7 +278,24 @@ void Mesh::printFacets() const{
     }
 }
 
+double Mesh::perimeter() const{
+    double perimeter = 0.0;
+
+    for (auto facet : tabFacets){
+        if (facet.isBoundary){
+            perimeter += facet.length();
+        }
+    }
+
+    return perimeter;
+}
+
 int main(int argc, char* argv[]){
+
+    Mesh mesh("square2d_perforated.msh");
+    mesh.buildConnectivity();
+
+    /*
     Mesh mesh("square2d_4elt.msh");
 
     std::cout << "Number of nodes: " << mesh.getNbNodes() << std::endl;
@@ -292,6 +319,10 @@ int main(int argc, char* argv[]){
     for (int elem : mesh.getElementsForFacets(5)){
         std::cout << "Element " << elem << " is connected to facet 5" << std::endl;
     }
+
+    */
+
+    std::cout << "Perimeter: " << mesh.perimeter() << std::endl;
 
     return 0;
 }
