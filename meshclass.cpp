@@ -2,29 +2,59 @@
 #include <sstream>
 #include <fstream>
 #include <string>
-#include <memory>
-#include <functional>
 #include <set>
 #include <cmath>
 #include <unordered_set>
 #include <map>
 #include <unordered_map>
+#include <chrono>
+#include <unistd.h>
 
 #include "meshclass.hpp"
 
-std::ostream& operator<<(std::ostream& os, const Node& node){
+static int allocations = 0;
+
+void* operator new(std::size_t size) {
+    allocations++;
+    return malloc(size);
+}
+
+/**
+ * NODE CLASS IMPLEMENTATION
+*/
+
+double Node::distance(const Node& other) const {
+    return std::sqrt(std::pow(coefficients[0] - other.coefficients[0], 2) +
+                     std::pow(coefficients[1] - other.coefficients[1], 2));
+}
+
+std::ostream& operator<<(std::ostream& os, const Node& node) {
     os << "(" << node.coefficients[0] << ", " << node.coefficients[1] << ")";
     return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const TriangleElements& elem){
+
+/**
+ * TRIANGLE ELEMENT CLASS IMPLEMENTATION
+*/
+
+std::ostream& operator<<(std::ostream& os, const TriangleElements& elem) {
     os << "A = " << (*elem.globalNodeTab)[elem.globalNodeId[0]]
        << ", B = " << (*elem.globalNodeTab)[elem.globalNodeId[1]]
        << ", C = " << (*elem.globalNodeTab)[elem.globalNodeId[2]];
     return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const Facet& facet){
+
+/**
+ * FACET CLASS IMPLEMENTATION
+*/
+
+double Facet::length() const {
+    return (*globalNodeTab)[globalNodeId[0]].distance((*globalNodeTab)[globalNodeId[1]]);
+}
+
+std::ostream& operator<<(std::ostream& os, const Facet& facet) {
     os << "Nodes on facet\n";
     os << "A = " << facet.globalNodeId[0]
        << ", B = " << facet.globalNodeId[1] << std::endl;
@@ -37,22 +67,20 @@ std::ostream& operator<<(std::ostream& os, const Facet& facet){
     return os;
 }
 
-double Node::distance(const Node& other) const{
-    return std::sqrt(std::pow(coefficients[0] - other.coefficients[0], 2) +
-                     std::pow(coefficients[1] - other.coefficients[1], 2));
-}
 
-double Facet::length() const {
-    return (*globalNodeTab)[globalNodeId[0]].distance((*globalNodeTab)[globalNodeId[1]]);
-}
+/**
+ * MESH CLASS IMPLEMENTATION
+*/
 
 Mesh::Mesh(std::string path) {
+
     std::ifstream meshFile(path, std::ios::in);
 
     nbFacets = 0;
 
     if (meshFile){
         std::string firstlines;
+        firstlines.reserve(1048);
         
         // Extracting mesh nodes
         std::getline(meshFile, firstlines);
@@ -61,38 +89,47 @@ Mesh::Mesh(std::string path) {
         }
 
         std::string lines;
+        lines.reserve(1048);
         std::getline(meshFile, lines);
         std::istringstream stream(lines);
+
         stream >> nbNodes;
         tabNodes.resize(nbNodes);
 
         std::getline(meshFile, lines);
-        while (lines != "$EndNodes"){
-            stream = std::istringstream(lines);
-            unsigned int id; double x, y, z;
-            stream >> id >> x >> y >> z;
 
+        while (lines != "$EndNodes"){
+            stream.clear();
+            stream.str(lines);
+
+            unsigned int id; double x, y, z;            
+            stream >> id >> x >> y >> z;
             id --;
+
             tabNodes[id] = Node(x, y);
+
             std::getline(meshFile, lines);
         }
 
         // Extracting elements (skipping segments)
+
         while (lines != "$Elements"){
             std::getline(meshFile, lines);
         }
 
         std::getline(meshFile, lines);
-        stream = std::istringstream(lines);
+        stream.clear();
+        stream.str(lines);
 
         int Ne;
         stream >> Ne;
         tabElements.reserve(Ne);
+        nbElements = 0;
 
         std::getline(meshFile, lines);
-        nbElements = 0;
         while (lines != "$EndElements"){
-            stream = std::istringstream(lines);
+            stream.clear();
+            stream.str(lines);
             unsigned int id; int marker; int tags;
             stream >> id >> marker >> tags >> tags >> tags;
 
@@ -100,6 +137,7 @@ Mesh::Mesh(std::string path) {
                 int p1, p2, p3;
                 stream >> p1 >> p2 >> p3;
                 const std::array <int, 3> &tab = {--p1, --p2, --p3};
+
                 tabElements.push_back(TriangleElements(tab, tabNodes));
                 nbElements ++;
             }
@@ -152,6 +190,10 @@ void Mesh::buildConnectivity() {
     nodeToFacets.clear();
     elementToFacets.clear();
 
+    nodeToElements.reserve(nbNodes);
+    nodeToFacets.reserve(nbNodes);
+    elementToFacets.reserve(nbElements);
+
     nbFacets = 0;
 
     // Temporary container to handle duplicates
@@ -165,6 +207,7 @@ void Mesh::buildConnectivity() {
         for (int localFacet = 0; localFacet < 3; ++localFacet) {
             
             std::array<int, 2> nodeId(getFaceNodes(tabElements[element], localFacet));
+            // Making sure the facet is oriented
             swapFaceNodes(nodeId);
 
             // Building nodeToElements connectivity
@@ -215,7 +258,7 @@ std::vector<int> Mesh::getElementsForFacets(int facetId) const {
         elements.push_back(tabFacets[facetId].globalElemId[1]);
     }
 
-    return std::move(elements);
+    return elements;
 }
 
 std::vector<int> Mesh::getNeighborTriangles(int triangleId) const {
@@ -237,7 +280,7 @@ std::vector<int> Mesh::getNeighborTriangles(int triangleId) const {
         }
     }
 
-    return std::move(neighbors);
+    return neighbors;
 }
 
 bool Mesh::isFacetOnBoundary(int facetId) const {
@@ -322,7 +365,16 @@ int main(int argc, char* argv[]){
 
     */
 
+    std::cout << "Allocations : " << allocations << std::endl;
+
+    allocations = 0;
+
+    auto start = std::chrono::steady_clock::now();
     std::cout << "Perimeter: " << mesh.perimeter() << std::endl;
+    auto end = std::chrono::steady_clock::now();
+    std::cout << "Elapsed time (ms) : " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << std::endl;
+
+    std::cout << "Allocations : " << allocations << std::endl;
 
     return 0;
 }
