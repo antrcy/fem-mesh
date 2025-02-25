@@ -183,3 +183,5 @@ public:
     /** @brief Identifies boundary facets and sums their lengths. */
     double perimeter() const;
 };
+
+void testEigen();

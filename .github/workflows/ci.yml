@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+
+  pull_request:
+    branches: [ "main", "dev" ]
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create_build_repo
+        run: |
+          mkdir build
+      
+      - name: Build_make_files
+        run: |
+          cmake ..
+          make
+          ./Mesh
+        working-directory: build

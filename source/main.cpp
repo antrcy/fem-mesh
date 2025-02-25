@@ -57,5 +57,7 @@ int main(int argc, char* argv[]){
 
     //std::cout << "Allocations : " << allocations << std::endl;
 
+    testEigen();
+
     return 0;
 }

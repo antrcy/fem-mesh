@@ -10,6 +10,7 @@
 #include <chrono>
 #include <unistd.h>
 
+#include <Eigen/Dense>
 #include "meshclass.hpp"
 
 /**
@@ -324,4 +325,23 @@ double Mesh::perimeter() const{
     }
 
     return perimeter;
+}
+
+void testEigen(){
+    Eigen::Matrix2d matA;
+    Eigen::Matrix2d matB;
+
+    // Initialisation des matrices
+    matA << 1, 2,
+            3, 4;
+    matB << 5, 6,
+            7, 8;
+
+    // Multiplication de matrices
+    Eigen::Matrix2d result = matA * matB;
+
+    // Affichage du résultat
+    std::cout << "Matrice A:\n" << matA << "\n\n";
+    std::cout << "Matrice B:\n" << matB << "\n\n";
+    std::cout << "Résultat de A * B:\n" << result << std::endl;
 }
