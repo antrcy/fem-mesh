@@ -14,11 +14,11 @@ endif()
 #    message(STATUS "Eigen found")
 #endif()
 
-#include_directories(include ${Eigen3_INCLUDE_DIR})
+include_directories(include)
 
-add_library(MeshUtilities "meshclass.cpp")
+add_library(MeshUtilities "source/meshclass.cpp")
 target_link_libraries(MeshUtilities PUBLIC) # Eigen3::Eigen)
 
 # main executable
-add_executable(${PROJECT_NAME} "main.cpp")
+add_executable(${PROJECT_NAME} "source/main.cpp")
 target_link_libraries(${PROJECT_NAME} PRIVATE MeshUtilities) # Eigen3::Eigen)

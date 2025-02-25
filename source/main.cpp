@@ -5,16 +5,18 @@
 
 #include "meshclass.hpp"
 
+/*
 static int allocations = 0;
 
 void* operator new(std::size_t size) {
     allocations++;
     return malloc(size);
 }
+*/
 
 int main(int argc, char* argv[]){
 
-    Mesh mesh("../square2d_perforated.msh");
+    Mesh mesh("../meshes/square2d_perforated.msh");
     mesh.buildConnectivity();
 
     /*
@@ -44,16 +46,16 @@ int main(int argc, char* argv[]){
 
     */
 
-    std::cout << "Allocations : " << allocations << std::endl;
+    //std::cout << "Allocations : " << allocations << std::endl;
 
-    allocations = 0;
+    //allocations = 0;
 
     auto start = std::chrono::steady_clock::now();
     std::cout << "Perimeter: " << mesh.perimeter() << std::endl;
     auto end = std::chrono::steady_clock::now();
     std::cout << "Elapsed time (ms) : " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << std::endl;
 
-    std::cout << "Allocations : " << allocations << std::endl;
+    //std::cout << "Allocations : " << allocations << std::endl;
 
     return 0;
 }

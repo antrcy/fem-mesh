@@ -17,7 +17,7 @@ struct Node{
     // Attributes
     std::array<double, 2> coefficients; // x, y coordinates
 
-    // Constrcutors
+    // Constructors
     Node(): coefficients({0.0, 0.0}) {}
     Node(double a, double b): coefficients({a, b}) {}
     Node(const std::array<double, 2>& c): coefficients(c) {}
@@ -65,6 +65,8 @@ struct Facet{
     std::array<int, 2> globalElemId;        // global element ids
     int identifier;  // unique identifier in the mesh
     bool isBoundary; // true if the facet is on the boundary of the mesh
+
+    
 
     // Constructors
     Facet(): globalNodeId({-1, -1}), globalElemId({-1, -1}), identifier(-1), isBoundary(false), globalNodeTab(nullptr) {}
