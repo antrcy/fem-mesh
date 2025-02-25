@@ -25,6 +25,9 @@ struct Node{
     // Methods
     /** @brief Returns the euclidean distance between two nodes.*/
     double distance(const Node& other) const; 
+
+    // Operators
+    double operator()(int) const;
 };
 
 // Output operator
@@ -43,6 +46,12 @@ struct TriangleElements {
     // Constructor
     TriangleElements(const std::array<int, 3>& nodeId, const std::vector<Node>& nodeTab): globalNodeId(nodeId), globalNodeTab(&nodeTab) {}
 
+    // Methods
+    /** @brief Returns the element's aera*/
+    double getAera() const;
+    /** @brief Returns the element's perimeter*/
+    double getPerimeter() const; 
+    
     // Operator
     int operator[](int localNodeId) const {
         return globalNodeId[localNodeId];
@@ -181,7 +190,7 @@ public:
     /** @brief Print facets - triangle ids, node ids, and boundary or not. */
     void printFacets() const;
     /** @brief Identifies boundary facets and sums their lengths. */
-    double perimeter() const;
+    double meshPerimeter() const;
+    /** @brief Returns the mesh aera. */
+    double meshAera() const;
 };
-
-void testEigen();

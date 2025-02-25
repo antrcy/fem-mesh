@@ -16,7 +16,7 @@ void* operator new(std::size_t size) {
 
 int main(int argc, char* argv[]){
 
-    Mesh mesh("../meshes/square2d_perforated.msh");
+    Mesh mesh("../meshes/square2d_4elt.msh");
     mesh.buildConnectivity();
 
     /*
@@ -51,13 +51,11 @@ int main(int argc, char* argv[]){
     //allocations = 0;
 
     auto start = std::chrono::steady_clock::now();
-    std::cout << "Perimeter: " << mesh.perimeter() << std::endl;
+    std::cout << "Perimeter: " << mesh.meshPerimeter() << std::endl;
+    std::cout << "Aera: " << mesh.meshAera() << std::endl;
     auto end = std::chrono::steady_clock::now();
     std::cout << "Elapsed time (ms) : " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << std::endl;
 
     //std::cout << "Allocations : " << allocations << std::endl;
-
-    testEigen();
-
     return 0;
 }

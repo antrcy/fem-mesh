@@ -22,6 +22,10 @@ double Node::distance(const Node& other) const {
                      std::pow(coefficients[1] - other.coefficients[1], 2));
 }
 
+double Node::operator()(int i) const{
+    return coefficients[i];
+}
+
 std::ostream& operator<<(std::ostream& os, const Node& node) {
     os << "(" << node.coefficients[0] << ", " << node.coefficients[1] << ")";
     return os;
@@ -31,6 +35,29 @@ std::ostream& operator<<(std::ostream& os, const Node& node) {
 /**
  * TRIANGLE ELEMENT CLASS IMPLEMENTATION
 */
+
+double TriangleElements::getAera() const {
+    int a, b, c;
+    Eigen::Matrix<double, 3, 3> M3;
+    a = globalNodeId[0]; b = globalNodeId[1]; c = globalNodeId[2];
+    
+    M3 << 1.0, (*globalNodeTab)[a](0), (*globalNodeTab)[a](1),
+          1.0, (*globalNodeTab)[b](0), (*globalNodeTab)[b](1),
+          1.0, (*globalNodeTab)[c](0), (*globalNodeTab)[c](1);
+    
+    return M3.determinant() / 2.0;
+}
+
+double TriangleElements::getPerimeter() const{
+    int a, b, c;
+    a = globalNodeId[0]; b = globalNodeId[1]; c = globalNodeId[2];
+
+    double T1 = (*globalNodeTab)[a].distance((*globalNodeTab)[b]);
+    double T2 = (*globalNodeTab)[b].distance((*globalNodeTab)[c]);
+    double T3 = (*globalNodeTab)[c].distance((*globalNodeTab)[a]);
+
+    return T1 + T2 + T3;
+}
 
 std::ostream& operator<<(std::ostream& os, const TriangleElements& elem) {
     os << "A = " << (*elem.globalNodeTab)[elem.globalNodeId[0]]
@@ -315,7 +342,7 @@ void Mesh::printFacets() const{
     }
 }
 
-double Mesh::perimeter() const{
+double Mesh::meshPerimeter() const{
     double perimeter = 0.0;
 
     for (auto facet : tabFacets){
@@ -327,21 +354,12 @@ double Mesh::perimeter() const{
     return perimeter;
 }
 
-void testEigen(){
-    Eigen::Matrix2d matA;
-    Eigen::Matrix2d matB;
+double Mesh::meshAera() const{
+    double aera = 0.0;
 
-    // Initialisation des matrices
-    matA << 1, 2,
-            3, 4;
-    matB << 5, 6,
-            7, 8;
+    for (auto elements : tabElements){
+        aera += elements.getAera();
+    }
 
-    // Multiplication de matrices
-    Eigen::Matrix2d result = matA * matB;
-
-    // Affichage du résultat
-    std::cout << "Matrice A:\n" << matA << "\n\n";
-    std::cout << "Matrice B:\n" << matB << "\n\n";
-    std::cout << "Résultat de A * B:\n" << result << std::endl;
+    return aera;
 }
