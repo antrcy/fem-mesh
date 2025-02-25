@@ -27,14 +27,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(Eigen)
 
-include_directories(include, )
+include_directories(include)
 
 add_library(MeshUtilities "source/meshclass.cpp")
 target_link_libraries(MeshUtilities PUBLIC Eigen3::Eigen)
 
 # main executable
 add_executable(${PROJECT_NAME} "source/main.cpp")
-target_link_libraries(${PROJECT_NAME} PRIVATE MeshUtilities) # Eigen3::Eigen)
+target_link_libraries(${PROJECT_NAME} PRIVATE MeshUtilities Eigen3::Eigen)
 
 #enable_testing()
 
