@@ -1,3 +1,6 @@
+#ifndef MESH_H
+#define MESH_H
+
 #include <iostream>
 #include <sstream>
 #include <fstream>
@@ -8,6 +11,8 @@
 #include <unordered_set>
 #include <map>
 #include <unordered_map>
+
+typedef std::unordered_map<int, int> u_mapint;
 
 /**
  * @brief Represents a node in the mesh.
@@ -40,8 +45,9 @@ std::ostream& operator<<(std::ostream& os, const Node& node);
 struct TriangleElements {
 
     // Attributes
-    std::array<int, 3> globalNodeId;  // global node ids
+    std::array<int, 3> globalNodeId;        // global node ids
     const std::vector<Node>* globalNodeTab; // pointer to the global node table
+    int identifier; // unique identifier in the mesh - same as the .msh id
 
     // Constructor
     TriangleElements(const std::array<int, 3>& nodeId, const std::vector<Node>& nodeTab): globalNodeId(nodeId), globalNodeTab(&nodeTab) {}
@@ -72,19 +78,19 @@ struct Facet{
     const std::vector<Node>* globalNodeTab; // pointer to mesh node tab
     std::array<int, 2> globalNodeId;        // global node ids
     std::array<int, 2> globalElemId;        // global element ids
-    int identifier;  // unique identifier in the mesh
-    bool isBoundary; // true if the facet is on the boundary of the mesh
-
     
+    int identifier;  // unique identifier in the mesh - same as the .msh id
+    bool isBoundary;        // true if the facet is on the boundary of the mesh
+
 
     // Constructors
-    Facet(): globalNodeId({-1, -1}), globalElemId({-1, -1}), identifier(-1), isBoundary(false), globalNodeTab(nullptr) {}
+    Facet(): globalNodeId({-1, -1}), globalElemId({-1, -1}), isBoundary(false), globalNodeTab(nullptr), identifier(-1) {}
     Facet(const std::array<int, 2>& node, const std::array<int, 2>& elem, const std::vector<Node>& nodeTab, int id) : 
-                identifier(id), 
+                identifier(id),
                 isBoundary(false),
                 globalNodeTab(&nodeTab)
 
-    {
+    {   
         globalNodeId = node;
         globalElemId = elem;
         isBoundary = (globalElemId[1] == -1) || (globalElemId[0] == -1);
@@ -109,15 +115,23 @@ std::ostream& operator<<(std::ostream& os, const Facet& facet);
  * @brief Mesh class encapsulating finite element data structures
  */
 class Mesh{
+private:
+    // Indexing maps
+    std::vector<int> idToIndexNodes;
+    std::vector<int> idToIndexElements;
+    std::vector<int> idToIndexFacets;
+
 public:
     // Mesh properties
     unsigned int nbNodes;    // number of nodes
     unsigned int nbElements; // number of elements
     unsigned int nbFacets;   // number of facets
 
-    // Containers
+    // Containers (msh elements)
     std::vector<Node> tabNodes;                 // array of nodes
     std::vector<TriangleElements> tabElements;  // array of elements
+
+    // Containers (other elements)
     std::vector<Facet> tabFacets;               // array of facets
 
     // Connectivity maps
@@ -130,18 +144,18 @@ public:
     Mesh(std::string);
 
     // Mapping utilities
-    std::array<std::array<int, 2>, 3> facetToNode = {{
+    std::array<std::array<int, 2>, 3> localfacetToLocalNode = {{
         {1, 2}, 
         {2, 0},
         {0, 1}
     }};
     
     std::array<int, 2> getFaceNodes(const std::array<int, 3>& element, int localFacetId) {
-        return {element[facetToNode[localFacetId][0]], element[facetToNode[localFacetId][1]]};
+        return {element[localfacetToLocalNode[localFacetId][0]], element[localfacetToLocalNode[localFacetId][1]]};
     }
 
     std::array<int, 2> getFaceNodes(const TriangleElements& element, int localFacetId) {
-        return {element[facetToNode[localFacetId][0]], element[facetToNode[localFacetId][1]]};
+        return {element[localfacetToLocalNode[localFacetId][0]], element[localfacetToLocalNode[localFacetId][1]]};
     }
 
     void swapFaceNodes(std::array<int, 2>& faceNodes) {
@@ -149,6 +163,8 @@ public:
             std::swap(faceNodes[0], faceNodes[1]);
         }
     }
+
+    std::unordered_map<int, std::string> markerVerbose;
 
     // Methods
     /** @brief Adds a node to the mesh. */
@@ -194,3 +210,5 @@ public:
     /** @brief Returns the mesh aera. */
     double meshAera() const;
 };
+
+#endif

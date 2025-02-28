@@ -7,8 +7,6 @@
 #include <unordered_set>
 #include <map>
 #include <unordered_map>
-#include <chrono>
-#include <unistd.h>
 
 #include <Eigen/Dense>
 #include "meshclass.hpp"
@@ -52,11 +50,11 @@ double TriangleElements::getPerimeter() const{
     int a, b, c;
     a = globalNodeId[0]; b = globalNodeId[1]; c = globalNodeId[2];
 
-    double T1 = (*globalNodeTab)[a].distance((*globalNodeTab)[b]);
-    double T2 = (*globalNodeTab)[b].distance((*globalNodeTab)[c]);
-    double T3 = (*globalNodeTab)[c].distance((*globalNodeTab)[a]);
+    double perimeter = (*globalNodeTab)[a].distance((*globalNodeTab)[b])
+                     + (*globalNodeTab)[b].distance((*globalNodeTab)[c])
+                     + (*globalNodeTab)[c].distance((*globalNodeTab)[a]);
 
-    return T1 + T2 + T3;
+    return perimeter;
 }
 
 std::ostream& operator<<(std::ostream& os, const TriangleElements& elem) {
