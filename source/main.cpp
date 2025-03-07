@@ -17,10 +17,7 @@ void* operator new(std::size_t size) {
 int main(int argc, char* argv[]){
     Mesh mesh("../meshes/square2d_perforated.msh");
 
-    std::cout << "Number of nodes: " << mesh.getNbNodes() << std::endl;
-    std::cout << "Number of elements: " << mesh.getNbElements() << std::endl;
-    std::cout << "Number of facets: " << mesh.getNbFacets() << std::endl;
-
+    mesh.domainSummary();
     mesh.buildConnectivity();
 
     /*

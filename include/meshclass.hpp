@@ -7,10 +7,13 @@
 #include <string>
 #include <memory>
 #include <functional>
+#include <algorithm>
 #include <set>
 #include <unordered_set>
 #include <map>
 #include <unordered_map>
+#include <boost/bimap.hpp>
+
 
 /**
  * @brief Represents a node in the mesh.
@@ -81,12 +84,14 @@ struct Facet{
     
     int identifier;         // unique identifier in the mesh - same as the .msh id
     bool isBoundary;        // true if the facet is on the boundary of the mesh
+    bool isSegement;        // true if the facet is an element segment in .msh
 
     // Constructors
-    Facet(): globalNodeId({-1, -1}), isBoundary(false), globalNodeTab(nullptr), identifier(-1) {}
-    Facet(const std::array<int, 2>& node, const std::vector<Node>& nodeTab, int id) : 
+    Facet(): globalNodeId({-1, -1}), isBoundary(false), globalNodeTab(nullptr), identifier(-1), isSegement(false) {}
+    Facet(const std::array<int, 2>& node, const std::vector<Node>& nodeTab, int id, bool flag) : 
                 identifier(id),
                 isBoundary(false),
+                isSegement(flag),
                 globalNodeTab(&nodeTab)
 
     {   
@@ -121,9 +126,7 @@ public:
     // Containers (msh elements)
     std::vector<Node> tabNodes;                 // array of nodes
     std::vector<TriangleElement> tabTriangle;   // array of triangles
-
-    // Containers (other elements)
-    std::vector<Facet> tabFacets;   // array of facets
+    std::vector<Facet> tabFacets;               // array of facets
     int nextFacetId;
 
     // Connectivity maps
@@ -133,7 +136,7 @@ public:
     std::unordered_map<int, std::array<int, 3>> elementToFacets;     // elementId -> set of facets
 
     // Region markers
-    std::unordered_map<int, std::string> availibleMarkers;
+    boost::bimap<std::string, int> physicalMarkers;
     std::unordered_map<int, int> markedFacets;
     std::unordered_map<int, int> markedElements;
 
@@ -181,6 +184,9 @@ public:
     const TriangleElement& getElement(int elementId) const;
     /** @brief Returns a reference to a facet in the mesh. */
     const Facet& getFacet(int facetId) const;
+
+        // CONNECTIVITY RELATED
+
     /** @brief Build connectivity maps for the mesh. */
     void buildConnectivity();
     /** @brief Returns a vector of element IDs that contain a given node. */
@@ -197,6 +203,17 @@ public:
     bool isNodeOnBoundary(int nodeId) const;
     /** @brief Returns a boolean indicating whether a given element is on the boundary. */
     bool isTriangleOnBoundary(int triangleId) const;
+
+        // FILTERS AND PHYSICAL NAMES
+
+    /** @brief Prints the physical names and the number of elements associated. */
+    void domainSummary() const;
+    /** @brief Returns a vector of triangle elements marked with a physical name. */
+    std::vector<int> getMarkedElements(const std::string&) const;
+    /** @brief Returns a vector of facet marked with a physical name. */
+    std::vector<int> getMarkedFacet(const std::string&) const;
+
+    /** @brief Returns a becyor */
     /** @brief Print nodes in (x, y) format. */
     void printNodes() const;
     /** @brief Print triangle and their nodes. */

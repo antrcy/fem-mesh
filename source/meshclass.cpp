@@ -119,7 +119,7 @@ Mesh::Mesh(std::string path) {
 
             stream >> dimension >> physicalId >> physicalName;
 
-            availibleMarkers[physicalId] = physicalName;
+            physicalMarkers.insert({physicalName, physicalId});
             std::getline(meshFile, lines);
         }
 
@@ -187,7 +187,7 @@ Mesh::Mesh(std::string path) {
                 const std::array<int, 2> &tab = {idToIndexNodes[p1], 
                                                  idToIndexNodes[p2]};
 
-                tabFacets.push_back(Facet(tab, tabNodes, id));
+                tabFacets.push_back(Facet(tab, tabNodes, id, true));
 
                 markedFacets[id] = physical;
                 idToIndexFacets[id] = nbFacets;
@@ -310,7 +310,7 @@ void Mesh::buildConnectivity() {
             nodeToFacets[nodeId[1]].insert(facetId);
 
             if (facetMap.find(nodeId) == facetMap.end()){
-                facetMap[nodeId] = Facet(nodeId, tabNodes, facetId);
+                facetMap[nodeId] = Facet(nodeId, tabNodes, facetId, false);
                 facetToElementsTemp[facetId] = {triangleId, -1};
 
                 nbFacets ++; nextFacetId ++;
@@ -409,6 +409,53 @@ bool Mesh::isTriangleOnBoundary(int triangleId) const {
         isOnBoundary = isOnBoundary && isFacetOnBoundary(facetId);
     }
     return !isOnBoundary;
+}
+
+void Mesh::domainSummary() const{
+    std::cout << "$Physical Names" << std::endl;
+
+    for (const auto& names : physicalMarkers.left) {
+        std::cout << names.first << " - " << names.second;
+
+        int counter = 0;
+        for (const auto& elem : markedElements) {
+            counter += (elem.second == names.second);
+        } for (const auto& facet : markedFacets) {
+            counter += (facet.second == names.second);
+        }
+
+        std::cout << " : " << counter << std::endl;
+    }
+}
+
+std::vector<int> Mesh::getMarkedElements(const std::string& name) const {
+    std::vector<int> elemID; elemID.reserve(markedElements.size());
+
+    int physicalID = physicalMarkers.left.at(name);
+
+    for (const auto& elem : markedElements){
+        if (elem.second == physicalID) {
+            elemID.push_back(elem.first);
+        }
+    }
+
+    elemID.shrink_to_fit();
+    return elemID;
+}
+
+std::vector<int> Mesh::getMarkedFacet(const std::string& name) const {
+    std::vector<int> facID; facID.reserve(markedFacets.size());
+
+    int physicalID = physicalMarkers.left.at(name);
+
+    for (const auto& face : markedFacets){
+        if (face.second == physicalID) {
+            facID.push_back(face.first);
+        }
+    }
+
+    facID.shrink_to_fit();
+    return facID;
 }
 
 void Mesh::printNodes() const{
