@@ -15,12 +15,7 @@ void* operator new(std::size_t size) {
 */
 
 int main(int argc, char* argv[]){
-
-    Mesh mesh("../meshes/square2d_4elt.msh");
-    mesh.buildConnectivity();
-
-    /*
-    Mesh mesh("square2d_4elt.msh");
+    Mesh mesh("../meshes/square2d_perforated.msh");
 
     std::cout << "Number of nodes: " << mesh.getNbNodes() << std::endl;
     std::cout << "Number of elements: " << mesh.getNbElements() << std::endl;
@@ -28,9 +23,16 @@ int main(int argc, char* argv[]){
 
     mesh.buildConnectivity();
 
-    mesh.printFacets();
+    /*
     mesh.printTriangles();
     mesh.printNodes();
+    */
+
+    std::cout << "Number of nodes: " << mesh.getNbNodes() << std::endl;
+    std::cout << "Number of elements: " << mesh.getNbElements() << std::endl;
+    std::cout << "Number of facets: " << mesh.getNbFacets() << std::endl;
+
+    /*
 
     for (int elem : mesh.getElementsForNode(4)){
         std::cout << "Element " << elem << " is connected to node 4" << std::endl;
@@ -50,11 +52,13 @@ int main(int argc, char* argv[]){
 
     //allocations = 0;
 
+    
     auto start = std::chrono::steady_clock::now();
     std::cout << "Perimeter: " << mesh.meshPerimeter() << std::endl;
     std::cout << "Aera: " << mesh.meshAera() << std::endl;
     auto end = std::chrono::steady_clock::now();
     std::cout << "Elapsed time (ms) : " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << std::endl;
+    
 
     //std::cout << "Allocations : " << allocations << std::endl;
     return 0;
