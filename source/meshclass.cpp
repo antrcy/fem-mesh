@@ -36,7 +36,7 @@ std::ostream& operator<<(std::ostream& os, const Node& node) {
 double TriangleElement::getAera() const {
     int a, b, c;
     Eigen::Matrix<double, 3, 3> M3;
-    a = globalNodeId[0]; b = globalNodeId[1]; c = globalNodeId[2];
+    a = globalNodeIndex[0]; b = globalNodeIndex[1]; c = globalNodeIndex[2];
     
     M3 << 1.0, (*globalNodeTab)[a](0), (*globalNodeTab)[a](1),
           1.0, (*globalNodeTab)[b](0), (*globalNodeTab)[b](1),
@@ -47,7 +47,7 @@ double TriangleElement::getAera() const {
 
 double TriangleElement::getPerimeter() const{
     int a, b, c;
-    a = globalNodeId[0]; b = globalNodeId[1]; c = globalNodeId[2];
+    a = globalNodeIndex[0]; b = globalNodeIndex[1]; c = globalNodeIndex[2];
 
     double perimeter = (*globalNodeTab)[a].distance((*globalNodeTab)[b])
                      + (*globalNodeTab)[b].distance((*globalNodeTab)[c])
@@ -57,9 +57,9 @@ double TriangleElement::getPerimeter() const{
 }
 
 std::ostream& operator<<(std::ostream& os, const TriangleElement& elem) {
-    os << "A = " << (*elem.globalNodeTab)[elem.globalNodeId[0]]
-       << ", B = " << (*elem.globalNodeTab)[elem.globalNodeId[1]]
-       << ", C = " << (*elem.globalNodeTab)[elem.globalNodeId[2]];
+    os << "A = " << (*elem.globalNodeTab)[elem.globalNodeIndex[0]]
+       << ", B = " << (*elem.globalNodeTab)[elem.globalNodeIndex[1]]
+       << ", C = " << (*elem.globalNodeTab)[elem.globalNodeIndex[2]];
     return os;
 }
 
@@ -69,13 +69,13 @@ std::ostream& operator<<(std::ostream& os, const TriangleElement& elem) {
 */
 
 double Facet::length() const {
-    return (*globalNodeTab)[globalNodeId[0]].distance((*globalNodeTab)[globalNodeId[1]]);
+    return (*globalNodeTab)[globalNodeIndex[0]].distance((*globalNodeTab)[globalNodeIndex[1]]);
 }
 
 std::ostream& operator<<(std::ostream& os, const Facet& facet) {
     os << "Nodes on facet\n";
-    os << "A = " << facet.globalNodeId[0]
-       << ", B = " << facet.globalNodeId[1] << std::endl
+    os << "A = " << facet.globalNodeIndex[0]
+       << ", B = " << facet.globalNodeIndex[1] << std::endl
        << "Id = " << facet.identifier << std::endl;
 
     os << "Is boundary facet ? " << facet.isBoundary << std::endl;
@@ -120,6 +120,7 @@ Mesh::Mesh(std::string path) {
             stream >> dimension >> physicalId >> physicalName;
 
             physicalMarkers.insert({physicalName, physicalId});
+            markerDimension.insert({physicalId, dimension});
             std::getline(meshFile, lines);
         }
 
@@ -247,6 +248,14 @@ int Mesh::getNbFacets() const {
     return nbFacets;
 }
 
+int Mesh::getNbSegments() const {
+    int res = 0;
+    for (const auto& face : tabFacets) {
+        res += face.isSegement;
+    }
+    return res;
+}
+
 const Node& Mesh::getNode(int nodeId) const {
     int index = idToIndexNodes.at(nodeId);
     return tabNodes[index];
@@ -278,7 +287,7 @@ void Mesh::buildConnectivity() {
     std::map<int, std::array<int, 2>> facetToElementsTemp;
 
     for (int i = 0; i < nbFacets; i ++){
-        std::array<int, 2> node = swapFaceNodes(tabFacets[i].globalNodeId);
+        std::array<int, 2> node = swapFaceNodes(tabFacets[i].globalNodeIndex);
         facetMap[node] = tabFacets[i];
         facetToElementsTemp[tabFacets[i].identifier] = {-1, -1};
     }
@@ -496,4 +505,52 @@ double Mesh::meshAera() const{
     }
 
     return aera;
+}
+
+int Mesh::exportToVTK(const std::string& path, const std::string& plotName, functionType function = 0){
+    std::ofstream ofile(path, std::ios::out);
+
+    if (ofile) {
+        ofile << "# vtk DataFile Version 2.0\n"
+                << "plotToVTK in meshclass\n"
+                << "ASCII\n"
+                << "DATASET UNSTRUCTURED_GRID\n"
+                << "POINTS " << nbNodes << " float\n";
+        
+        for (unsigned int i = 0; i < nbNodes; i ++){
+            std::array<double, 2> coeff = tabNodes[i].coefficients;
+            ofile << coeff[0] << ' ' << coeff[1] << ' ' << 0 << '\n';
+        }
+
+        std::cout << "PING " << std::endl;
+
+        ofile << "CELLS " << nbTriangles << ' ' << 4 * nbTriangles << '\n';
+        for (unsigned int i = 0; i < nbTriangles; i ++){
+            std::array<int, 3> nodeIndex = tabTriangle[i].globalNodeIndex;
+
+            ofile << 3 << ' ' << nodeIndex[0]
+                       << ' ' << nodeIndex[1]
+                       << ' ' << nodeIndex[2] << '\n';
+        }
+
+        std::cout << "PING " << std::endl;
+        ofile << "CELL_TYPES " << nbTriangles;
+        for (unsigned int i = 0; i < nbTriangles; i ++){ofile << '\n' << 5;}
+
+        if (function != 0){
+            ofile << "\nPOINT_DATA " << nbNodes << '\n'
+                  << "SCALARS " << plotName << " float 1\n"
+                  << "LOOKUP_TABLE default" << '\n';
+
+            for (int i = 0; i < nbNodes; i ++){
+                ofile << function(tabNodes[i](0), tabNodes[i](1)) << '\n';
+            }
+        }
+
+        return 1;
+    } else {
+        return 0;
+    }
+
+    ofile.close();
 }

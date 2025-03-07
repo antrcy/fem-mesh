@@ -14,6 +14,8 @@
 #include <unordered_map>
 #include <boost/bimap.hpp>
 
+typedef std::function<double (double, double)> functionType;
+
 
 /**
  * @brief Represents a node in the mesh.
@@ -47,14 +49,14 @@ std::ostream& operator<<(std::ostream& os, const Node& node);
 struct TriangleElement {
 
     // Attributes
-    std::array<int, 3> globalNodeId;        // global node ids
+    std::array<int, 3> globalNodeIndex;        // global node ids
     const std::vector<Node>* globalNodeTab; // pointer to the global node table
     int identifier; // unique identifier in the mesh - same as the .msh id
 
     // Constructor
     TriangleElement(const std::array<int, 3>& nodeId,
                     const std::vector<Node>& nodeTab,
-                    const int id): globalNodeId(nodeId),
+                    const int id): globalNodeIndex(nodeId),
                                    globalNodeTab(&nodeTab),
                                    identifier(id) {}
 
@@ -66,7 +68,7 @@ struct TriangleElement {
     
     // Operator
     int operator[](int localNodeId) const {
-        return globalNodeId[localNodeId];
+        return globalNodeIndex[localNodeId];
     }
 };
 
@@ -80,23 +82,20 @@ struct Facet{
 
     // Attributes
     const std::vector<Node>* globalNodeTab; // pointer to mesh node tab
-    std::array<int, 2> globalNodeId;        // global node ids
+    std::array<int, 2> globalNodeIndex;        // global node ids
     
     int identifier;         // unique identifier in the mesh - same as the .msh id
     bool isBoundary;        // true if the facet is on the boundary of the mesh
     bool isSegement;        // true if the facet is an element segment in .msh
 
     // Constructors
-    Facet(): globalNodeId({-1, -1}), isBoundary(false), globalNodeTab(nullptr), identifier(-1), isSegement(false) {}
+    Facet(): globalNodeIndex({-1, -1}), isBoundary(false), globalNodeTab(nullptr), identifier(-1), isSegement(false) {}
     Facet(const std::array<int, 2>& node, const std::vector<Node>& nodeTab, int id, bool flag) : 
                 identifier(id),
                 isBoundary(false),
                 isSegement(flag),
-                globalNodeTab(&nodeTab)
-
-    {   
-        globalNodeId = node;
-    }
+                globalNodeTab(&nodeTab),
+                globalNodeIndex(node) {}
 
     // Methods
     double length() const;
@@ -137,6 +136,7 @@ public:
 
     // Region markers
     boost::bimap<std::string, int> physicalMarkers;
+    std::map<int, int> markerDimension;
     std::unordered_map<int, int> markedFacets;
     std::unordered_map<int, int> markedElements;
 
@@ -178,6 +178,8 @@ public:
     int getNbElements() const;
     /** @brief Returns the number of facets in the mesh. */
     int getNbFacets() const;
+    /** @brief Returns the number of segments marked facets in the mesh. */
+    int getNbSegments() const;
     /** @brief Returns a reference to a node in the mesh. */
     const Node& getNode(int nodeId) const;
     /** @brief Returns a reference to an element in the mesh. */
@@ -213,17 +215,20 @@ public:
     /** @brief Returns a vector of facet marked with a physical name. */
     std::vector<int> getMarkedFacet(const std::string&) const;
 
-    /** @brief Returns a becyor */
     /** @brief Print nodes in (x, y) format. */
     void printNodes() const;
     /** @brief Print triangle and their nodes. */
     void printTriangles() const;
     /** @brief Print facets - triangle ids, node ids, and boundary or not. */
     void printFacets() const;
+
     /** @brief Identifies boundary facets and sums their lengths. */
     double meshPerimeter() const;
     /** @brief Returns the mesh aera. */
     double meshAera() const;
+    
+    /** @brief Make a .vtk file of the mesh for plotting with optional functional. */
+    int exportToVTK(const std::string& path, const std::string& plotName, functionType function);
 };
 
 #endif

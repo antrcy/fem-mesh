@@ -14,7 +14,15 @@ void* operator new(std::size_t size) {
 }
 */
 
+double quadratic(double x, double y){
+    return x*x + y*y;
+}
+
+
 int main(int argc, char* argv[]){
+
+    functionType fun(&quadratic);
+
     Mesh mesh("../meshes/square2d_perforated.msh");
 
     mesh.domainSummary();
@@ -28,6 +36,8 @@ int main(int argc, char* argv[]){
     std::cout << "Number of nodes: " << mesh.getNbNodes() << std::endl;
     std::cout << "Number of elements: " << mesh.getNbElements() << std::endl;
     std::cout << "Number of facets: " << mesh.getNbFacets() << std::endl;
+
+    mesh.exportToVTK("test.vtk", "name", fun);
 
     /*
 
@@ -48,14 +58,6 @@ int main(int argc, char* argv[]){
     //std::cout << "Allocations : " << allocations << std::endl;
 
     //allocations = 0;
-
-    
-    auto start = std::chrono::steady_clock::now();
-    std::cout << "Perimeter: " << mesh.meshPerimeter() << std::endl;
-    std::cout << "Aera: " << mesh.meshAera() << std::endl;
-    auto end = std::chrono::steady_clock::now();
-    std::cout << "Elapsed time (ms) : " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << std::endl;
-    
 
     //std::cout << "Allocations : " << allocations << std::endl;
     return 0;
