@@ -37,6 +37,8 @@ int main(int argc, char* argv[]){
     std::cout << "Number of elements: " << mesh.getNbElements() << std::endl;
     std::cout << "Number of facets: " << mesh.getNbFacets() << std::endl;
 
+    mesh.getMarkedElements("\"Omega\"");
+
     mesh.exportToVTK("test.vtk", "name", fun);
 
     /*

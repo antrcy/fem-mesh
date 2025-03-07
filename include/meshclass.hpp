@@ -12,10 +12,10 @@
 #include <unordered_set>
 #include <map>
 #include <unordered_map>
-#include <boost/bimap.hpp>
+
+#include "bimap.hpp"
 
 typedef std::function<double (double, double)> functionType;
-
 
 /**
  * @brief Represents a node in the mesh.
@@ -135,7 +135,7 @@ public:
     std::unordered_map<int, std::array<int, 3>> elementToFacets;     // elementId -> set of facets
 
     // Region markers
-    boost::bimap<std::string, int> physicalMarkers;
+    biMap<std::string, int> physicalMarkers;
     std::map<int, int> markerDimension;
     std::unordered_map<int, int> markedFacets;
     std::unordered_map<int, int> markedElements;
@@ -226,7 +226,7 @@ public:
     double meshPerimeter() const;
     /** @brief Returns the mesh aera. */
     double meshAera() const;
-    
+
     /** @brief Make a .vtk file of the mesh for plotting with optional functional. */
     int exportToVTK(const std::string& path, const std::string& plotName, functionType function);
 };

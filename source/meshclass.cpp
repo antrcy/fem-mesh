@@ -10,6 +10,7 @@
 
 #include <Eigen/Dense>
 #include "meshclass.hpp"
+#include "bimap.hpp"
 
 /**
  * NODE CLASS IMPLEMENTATION
@@ -423,14 +424,15 @@ bool Mesh::isTriangleOnBoundary(int triangleId) const {
 void Mesh::domainSummary() const{
     std::cout << "$Physical Names" << std::endl;
 
-    for (const auto& names : physicalMarkers.left) {
-        std::cout << names.first << " - " << names.second;
+    for (auto it = physicalMarkers.get_iterator(); !it.end(); ++it) {
+
+        std::cout << it.get_left() << " - " << it.get_right();
 
         int counter = 0;
         for (const auto& elem : markedElements) {
-            counter += (elem.second == names.second);
+            counter += (elem.second == it.get_right());
         } for (const auto& facet : markedFacets) {
-            counter += (facet.second == names.second);
+            counter += (facet.second == it.get_right());
         }
 
         std::cout << " : " << counter << std::endl;
@@ -440,7 +442,7 @@ void Mesh::domainSummary() const{
 std::vector<int> Mesh::getMarkedElements(const std::string& name) const {
     std::vector<int> elemID; elemID.reserve(markedElements.size());
 
-    int physicalID = physicalMarkers.left.at(name);
+    int physicalID = physicalMarkers.at_first(name);
 
     for (const auto& elem : markedElements){
         if (elem.second == physicalID) {
@@ -455,7 +457,7 @@ std::vector<int> Mesh::getMarkedElements(const std::string& name) const {
 std::vector<int> Mesh::getMarkedFacet(const std::string& name) const {
     std::vector<int> facID; facID.reserve(markedFacets.size());
 
-    int physicalID = physicalMarkers.left.at(name);
+    int physicalID = physicalMarkers.at_first(name);
 
     for (const auto& face : markedFacets){
         if (face.second == physicalID) {
@@ -522,8 +524,6 @@ int Mesh::exportToVTK(const std::string& path, const std::string& plotName, func
             ofile << coeff[0] << ' ' << coeff[1] << ' ' << 0 << '\n';
         }
 
-        std::cout << "PING " << std::endl;
-
         ofile << "CELLS " << nbTriangles << ' ' << 4 * nbTriangles << '\n';
         for (unsigned int i = 0; i < nbTriangles; i ++){
             std::array<int, 3> nodeIndex = tabTriangle[i].globalNodeIndex;
@@ -533,7 +533,6 @@ int Mesh::exportToVTK(const std::string& path, const std::string& plotName, func
                        << ' ' << nodeIndex[2] << '\n';
         }
 
-        std::cout << "PING " << std::endl;
         ofile << "CELL_TYPES " << nbTriangles;
         for (unsigned int i = 0; i < nbTriangles; i ++){ofile << '\n' << 5;}
 
@@ -547,10 +546,10 @@ int Mesh::exportToVTK(const std::string& path, const std::string& plotName, func
             }
         }
 
+        ofile.close();
         return 1;
-    } else {
-        return 0;
     }
 
     ofile.close();
+    return 0;
 }
