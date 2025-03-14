@@ -20,7 +20,7 @@ typedef std::function<double (double, double)> functionType;
 /**
  * @brief Represents a node in the mesh.
  */
-struct Node{
+struct Node {
 
     // Attributes
     std::array<double, 2> coefficients; // x, y coordinates
@@ -68,11 +68,11 @@ struct TriangleElement {
 struct Facet{
 
     // Attributes
-    std::array<int, 2> globalNodeIndex;        // global node ids
+    std::array<int, 2> globalNodeIndex; // global node index
     
-    int identifier;         // unique identifier in the mesh - same as the .msh id
-    bool isBoundary;        // true if the facet is on the boundary of the mesh
-    bool isSegment;        // true if the facet is an element segment in .msh
+    int identifier;   // unique identifier in the mesh - same as the .msh id
+    bool isBoundary;  // true if the facet is on the boundary of the mesh
+    bool isSegment;   // true if the facet is an element segment in .msh
 
     // Constructors
     Facet(): globalNodeIndex({-1, -1}), isBoundary(false), identifier(-1), isSegment(false) {}
@@ -92,12 +92,6 @@ struct Facet{
  */
 class Mesh {
 private:
-    // Indexing maps
-    std::unordered_map<int, int> idToIndexNodes;
-    std::unordered_map<int, int> idToIndexTriangles;
-    std::unordered_map<int, int> idToIndexFacets;
-
-public:
     // Mesh properties
     unsigned int nbNodes;    // number of nodes
     unsigned int nbTriangles;// number of elements
@@ -122,6 +116,11 @@ public:
     std::unordered_map<int, int> markedElements;
 
 public:
+    // Indexing maps
+    std::unordered_map<int, int> idToIndexNodes;
+    std::unordered_map<int, int> idToIndexTriangles;
+    std::unordered_map<int, int> idToIndexFacets;
+
     // Constructor
     Mesh(std::string);
 
@@ -148,10 +147,14 @@ public:
         return copy;
     }
 
-    // ELEMENT RELATED METHODS
-    double getFacetLength(int) const;
-    double getTriangleAera(int) const;
-    double getTrianglePerimeter(int) const;
+        // ELEMENT RELATED METHODS
+
+    /** @brief Returns the length of a facet given its identifier. */
+    double getFacetLength(int identifier) const;
+    /** @brief Returns the aera of a triangle given its identifier. */
+    double getTriangleAera(int identifier) const;
+    /** @brief Retruns the perimeter of a triangle given its identifier. */
+    double getTrianglePerimeter(int identifier) const;
 
     /** @brief Adds a node to the mesh. */
     void addNode(const Node& node);
@@ -166,9 +169,9 @@ public:
     /** @brief Returns the number of segments marked facets in the mesh. */
     int getNbSegments() const;
     /** @brief Returns a reference to a node in the mesh given a vector index. */
-    const Node& getNode(int nodeIndex) const;
+    const Node& getNode(int identifier) const;
     /** @brief Returns a reference to an element in the mesh given a vector index. */
-    const TriangleElement& getElement(int elementIndex) const;
+    const TriangleElement& getElement(int identifier) const;
     /** @brief Returns a reference to a facet in the mesh given a vector index. */
     const Facet& getFacet(int facetIndex) const;
 
@@ -201,7 +204,7 @@ public:
     std::vector<int> getMarkedFacet(const std::string&) const;
 
     /** @brief Print nodes in (x, y) format. */
-    void printNodes() const;
+    //void printNodes() const;
     /** @brief Print triangle and their nodes. */
     //void printTriangles() const;
     /** @brief Print facets - triangle ids, node ids, and boundary or not. */

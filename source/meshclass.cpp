@@ -474,12 +474,6 @@ std::vector<int> Mesh::getMarkedFacet(const std::string& name) const {
     return facID;
 }
 
-void Mesh::printNodes() const{
-    for (auto& node : tabNodes){
-        std::cout << node << std::endl;
-    }
-}
-
 double Mesh::meshPerimeter() const{
     double perimeter = 0.0;
 
