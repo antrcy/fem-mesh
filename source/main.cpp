@@ -14,7 +14,7 @@ void* operator new(std::size_t size) {
 }
 */
 
-double quadratic(double x, double y){
+inline double quadratic(double x, double y){
     return x*x + y*y;
 }
 
@@ -37,8 +37,9 @@ int main(int argc, char* argv[]){
     std::cout << "Number of elements: " << mesh.getNbElements() << std::endl;
     std::cout << "Number of facets: " << mesh.getNbFacets() << std::endl;
 
-    mesh.getMarkedElements("\"Omega\"");
+    std::cout << "Number of segments: " << mesh.getNbSegments() << std::endl;
 
+    mesh.getMarkedElements("\"Omega\"");
     mesh.exportToVTK("test.vtk", "name", fun);
 
     /*
@@ -62,5 +63,9 @@ int main(int argc, char* argv[]){
     //allocations = 0;
 
     //std::cout << "Allocations : " << allocations << std::endl;
+
+    std::cout << "Aera: " << mesh.meshAera() << std::endl;
+    std::cout << "Perimeter: " << mesh.meshPerimeter() << std::endl;
+
     return 0;
 }

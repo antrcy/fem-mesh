@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <unordered_map>
+#include <stdexcept>
 
 template<typename key1, typename key2>
 class biMapIterator;
@@ -62,6 +63,7 @@ public:
     typename std::unordered_map<key1, key2>::const_iterator pos;
 
     biMapIterator(const biMap<key1, key2>* b): map(b) {
+        if (map == nullptr){throw std::runtime_error{"biMapIterator was initialized with nullptr"};} 
         pos = map->begin();
     }
     

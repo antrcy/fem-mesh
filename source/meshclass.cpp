@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include <map>
 #include <unordered_map>
+#include <stdexcept>
 
 #include <Eigen/Dense>
 #include "meshclass.hpp"
@@ -30,47 +31,55 @@ std::ostream& operator<<(std::ostream& os, const Node& node) {
     return os;
 }
 
+bool Node::operator==(const Node& other) const{
+    return (coefficients[0] - other.coefficients[0]) < 1e-6 && coefficients[1] == other.coefficients[1] < 1e-6;
+}
+
 /**
- * TRIANGLE ELEMENT CLASS IMPLEMENTATION
+ * TRIANGLE ELEMENT METHODS
 */
 
-double TriangleElement::getAera() const {
+double Mesh::getTriangleAera(int identifier) const {
+
+    int index = idToIndexTriangles.at(identifier);
+    const TriangleElement& triangle = getElement(index);
+
     int a, b, c;
     Eigen::Matrix<double, 3, 3> M3;
-    a = globalNodeIndex[0]; b = globalNodeIndex[1]; c = globalNodeIndex[2];
+    a = triangle[0]; b = triangle[1]; c = triangle[2];
     
-    M3 << 1.0, (*globalNodeTab)[a](0), (*globalNodeTab)[a](1),
-          1.0, (*globalNodeTab)[b](0), (*globalNodeTab)[b](1),
-          1.0, (*globalNodeTab)[c](0), (*globalNodeTab)[c](1);
+    M3 << 1.0, (tabNodes)[a](0), (tabNodes)[a](1),
+          1.0, (tabNodes)[b](0), (tabNodes)[b](1),
+          1.0, (tabNodes)[c](0), (tabNodes)[c](1);
     
     return M3.determinant() / 2.0;
 }
 
-double TriangleElement::getPerimeter() const{
-    int a, b, c;
-    a = globalNodeIndex[0]; b = globalNodeIndex[1]; c = globalNodeIndex[2];
+double Mesh::getTrianglePerimeter(int identifier) const {
 
-    double perimeter = (*globalNodeTab)[a].distance((*globalNodeTab)[b])
-                     + (*globalNodeTab)[b].distance((*globalNodeTab)[c])
-                     + (*globalNodeTab)[c].distance((*globalNodeTab)[a]);
+    int index = idToIndexTriangles.at(identifier);
+    const TriangleElement& triangle = getElement(index);
+
+    int a, b, c;
+    a = triangle[0]; b = triangle[1]; c = triangle[2];
+
+    double perimeter = (tabNodes)[a].distance((tabNodes)[b])
+                     + (tabNodes)[b].distance((tabNodes)[c])
+                     + (tabNodes)[c].distance((tabNodes)[a]);
 
     return perimeter;
 }
 
-std::ostream& operator<<(std::ostream& os, const TriangleElement& elem) {
-    os << "A = " << (*elem.globalNodeTab)[elem.globalNodeIndex[0]]
-       << ", B = " << (*elem.globalNodeTab)[elem.globalNodeIndex[1]]
-       << ", C = " << (*elem.globalNodeTab)[elem.globalNodeIndex[2]];
-    return os;
-}
-
-
 /**
- * FACET CLASS IMPLEMENTATION
+ * FACET METHODS
 */
 
-double Facet::length() const {
-    return (*globalNodeTab)[globalNodeIndex[0]].distance((*globalNodeTab)[globalNodeIndex[1]]);
+double Mesh::getFacetLength(int identifier) const {
+
+    int index = idToIndexFacets.at(identifier);
+    const Facet& facet = getFacet(index);
+
+    return tabNodes[facet[0]].distance(tabNodes[facet[1]]);
 }
 
 std::ostream& operator<<(std::ostream& os, const Facet& facet) {
@@ -82,7 +91,6 @@ std::ostream& operator<<(std::ostream& os, const Facet& facet) {
     os << "Is boundary facet ? " << facet.isBoundary << std::endl;
     return os;
 }
-
 
 /**
  * MESH CLASS IMPLEMENTATION
@@ -189,7 +197,7 @@ Mesh::Mesh(std::string path) {
                 const std::array<int, 2> &tab = {idToIndexNodes[p1], 
                                                  idToIndexNodes[p2]};
 
-                tabFacets.push_back(Facet(tab, tabNodes, id, true));
+                tabFacets.push_back(Facet(tab, id, true));
 
                 markedFacets[id] = physical;
                 idToIndexFacets[id] = nbFacets;
@@ -206,7 +214,7 @@ Mesh::Mesh(std::string path) {
                                                   idToIndexNodes[p2],
                                                   idToIndexNodes[p3]};
 
-                tabTriangle.push_back(TriangleElement(tab, tabNodes, id));
+                tabTriangle.push_back(TriangleElement(tab, id));
 
                 // Build partial connectivity
                 markedElements[id] = physical;
@@ -225,7 +233,7 @@ Mesh::Mesh(std::string path) {
     }
 
     else {
-        std::cout << "Could not open " << path << std::endl;
+        throw std::runtime_error{"Could not open " + path};
     }
 }
 
@@ -252,23 +260,20 @@ int Mesh::getNbFacets() const {
 int Mesh::getNbSegments() const {
     int res = 0;
     for (const auto& face : tabFacets) {
-        res += face.isSegement;
+        res += face.isSegment;
     }
     return res;
 }
 
-const Node& Mesh::getNode(int nodeId) const {
-    int index = idToIndexNodes.at(nodeId);
+const Node& Mesh::getNode(int index) const {
     return tabNodes[index];
 }
 
-const TriangleElement& Mesh::getElement(int elementId) const {
-    int index = idToIndexTriangles.at(elementId);
+const TriangleElement& Mesh::getElement(int index) const {
     return tabTriangle[index];
 }
 
-const Facet& Mesh::getFacet(int facetId) const {
-    int index = idToIndexFacets.at(facetId);
+const Facet& Mesh::getFacet(int index) const {
     return tabFacets[index];
 }
 
@@ -320,7 +325,7 @@ void Mesh::buildConnectivity() {
             nodeToFacets[nodeId[1]].insert(facetId);
 
             if (facetMap.find(nodeId) == facetMap.end()){
-                facetMap[nodeId] = Facet(nodeId, tabNodes, facetId, false);
+                facetMap[nodeId] = Facet(nodeId, facetId, false);
                 facetToElementsTemp[facetId] = {triangleId, -1};
 
                 nbFacets ++; nextFacetId ++;
@@ -475,24 +480,12 @@ void Mesh::printNodes() const{
     }
 }
 
-void Mesh::printTriangles() const{
-    for (auto& triangle : tabTriangle){
-        std::cout << triangle << std::endl;
-    }   
-}
-
-void Mesh::printFacets() const{
-    for (auto& facet : tabFacets){
-        std::cout << facet << std::endl;
-    }
-}
-
 double Mesh::meshPerimeter() const{
     double perimeter = 0.0;
 
     for (auto facet : tabFacets){
         if (facet.isBoundary){
-            perimeter += facet.length();
+            perimeter += getFacetLength(facet.identifier);
         }
     }
 
@@ -503,13 +496,13 @@ double Mesh::meshAera() const{
     double aera = 0.0;
 
     for (auto elements : tabTriangle){
-        aera += elements.getAera();
+        aera += getTriangleAera(elements.identifier);
     }
 
     return aera;
 }
 
-int Mesh::exportToVTK(const std::string& path, const std::string& plotName, functionType function = 0){
+int Mesh::exportToVTK(const std::string& path, const std::string& plotName, const functionType& function){
     std::ofstream ofile(path, std::ios::out);
 
     if (ofile) {

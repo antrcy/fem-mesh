@@ -37,43 +37,30 @@ struct Node{
 
     // Operators
     double operator()(int) const;
+    bool operator==(const Node&) const; // For debugging purposes only
 };
 
 // Output operator
 std::ostream& operator<<(std::ostream& os, const Node& node);
 
-
 /**
- * @brief Represents a triangle element in the mesh
+ * @brief Represents a triangle element in the mesh. Can only exist within a mesh
  */
 struct TriangleElement {
 
     // Attributes
-    std::array<int, 3> globalNodeIndex;        // global node ids
-    const std::vector<Node>* globalNodeTab; // pointer to the global node table
-    int identifier; // unique identifier in the mesh - same as the .msh id
+    std::array<int, 3> globalNodeIndex;  // global node ids
+    int identifier;     // unique identifier in the mesh - same as the .msh id
 
     // Constructor
     TriangleElement(const std::array<int, 3>& nodeId,
-                    const std::vector<Node>& nodeTab,
                     const int id): globalNodeIndex(nodeId),
-                                   globalNodeTab(&nodeTab),
                                    identifier(id) {}
-
-    // Methods
-    /** @brief Returns the element's aera*/
-    double getAera() const;
-    /** @brief Returns the element's perimeter*/
-    double getPerimeter() const; 
-    
     // Operator
     int operator[](int localNodeId) const {
         return globalNodeIndex[localNodeId];
     }
 };
-
-// Output operator
-std::ostream& operator<<(std::ostream& os, const TriangleElement& elem);
 
 /**
  * @brief Represents a facet in the mesh - elements edges
@@ -81,30 +68,24 @@ std::ostream& operator<<(std::ostream& os, const TriangleElement& elem);
 struct Facet{
 
     // Attributes
-    const std::vector<Node>* globalNodeTab; // pointer to mesh node tab
     std::array<int, 2> globalNodeIndex;        // global node ids
     
     int identifier;         // unique identifier in the mesh - same as the .msh id
     bool isBoundary;        // true if the facet is on the boundary of the mesh
-    bool isSegement;        // true if the facet is an element segment in .msh
+    bool isSegment;        // true if the facet is an element segment in .msh
 
     // Constructors
-    Facet(): globalNodeIndex({-1, -1}), isBoundary(false), globalNodeTab(nullptr), identifier(-1), isSegement(false) {}
-    Facet(const std::array<int, 2>& node, const std::vector<Node>& nodeTab, int id, bool flag) : 
+    Facet(): globalNodeIndex({-1, -1}), isBoundary(false), identifier(-1), isSegment(false) {}
+    Facet(const std::array<int, 2>& node, int id, bool flag) : 
                 identifier(id),
                 isBoundary(false),
-                isSegement(flag),
-                globalNodeTab(&nodeTab),
+                isSegment(flag),
                 globalNodeIndex(node) {}
 
-    // Methods
-    double length() const;
-
+    int operator[](int localNodeId) const {
+        return globalNodeIndex[localNodeId];
+    }
 };
-
-// Output operator
-std::ostream& operator<<(std::ostream& os, const Facet& facet);
-
 
 /**
  * @brief Mesh class encapsulating finite element data structures
@@ -167,7 +148,11 @@ public:
         return copy;
     }
 
-    // Methods
+    // ELEMENT RELATED METHODS
+    double getFacetLength(int) const;
+    double getTriangleAera(int) const;
+    double getTrianglePerimeter(int) const;
+
     /** @brief Adds a node to the mesh. */
     void addNode(const Node& node);
     /** @brief Adds an element to the mesh. */
@@ -180,12 +165,12 @@ public:
     int getNbFacets() const;
     /** @brief Returns the number of segments marked facets in the mesh. */
     int getNbSegments() const;
-    /** @brief Returns a reference to a node in the mesh. */
-    const Node& getNode(int nodeId) const;
-    /** @brief Returns a reference to an element in the mesh. */
-    const TriangleElement& getElement(int elementId) const;
-    /** @brief Returns a reference to a facet in the mesh. */
-    const Facet& getFacet(int facetId) const;
+    /** @brief Returns a reference to a node in the mesh given a vector index. */
+    const Node& getNode(int nodeIndex) const;
+    /** @brief Returns a reference to an element in the mesh given a vector index. */
+    const TriangleElement& getElement(int elementIndex) const;
+    /** @brief Returns a reference to a facet in the mesh given a vector index. */
+    const Facet& getFacet(int facetIndex) const;
 
         // CONNECTIVITY RELATED
 
@@ -218,9 +203,9 @@ public:
     /** @brief Print nodes in (x, y) format. */
     void printNodes() const;
     /** @brief Print triangle and their nodes. */
-    void printTriangles() const;
+    //void printTriangles() const;
     /** @brief Print facets - triangle ids, node ids, and boundary or not. */
-    void printFacets() const;
+    //void printFacets() const;
 
     /** @brief Identifies boundary facets and sums their lengths. */
     double meshPerimeter() const;
@@ -228,7 +213,7 @@ public:
     double meshAera() const;
 
     /** @brief Make a .vtk file of the mesh for plotting with optional functional. */
-    int exportToVTK(const std::string& path, const std::string& plotName, functionType function);
+    int exportToVTK(const std::string& path, const std::string& plotName, const functionType& function = 0);
 };
 
 #endif
