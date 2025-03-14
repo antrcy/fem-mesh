@@ -30,7 +30,7 @@ FetchContent_MakeAvailable(Eigen)
 
 include_directories(include)
 
-add_library(MeshUtilities "source/meshclass.cpp")
+add_library(MeshUtilities "source/meshclass.cpp" "source/quadrature.cpp")
 target_link_libraries(MeshUtilities PUBLIC Eigen3::Eigen)
 
 add_executable(${PROJECT_NAME} "source/main.cpp")

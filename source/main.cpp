@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 #include "meshclass.hpp"
+#include "quadrature.hpp"
 
 /*
 static int allocations = 0;
@@ -14,7 +15,11 @@ void* operator new(std::size_t size) {
 }
 */
 
-inline double quadratic(double x, double y){
+inline double constant(double x, double y) {
+    return 1.0;
+}
+
+inline double quadratic(double x, double y) {
     return x*x + y*y;
 }
 
@@ -63,9 +68,10 @@ int main(int argc, char* argv[]){
     //allocations = 0;
 
     //std::cout << "Allocations : " << allocations << std::endl;
-
     std::cout << "Aera: " << mesh.meshAera() << std::endl;
     std::cout << "Perimeter: " << mesh.meshPerimeter() << std::endl;
+    MeshIntegration quadMesh(mesh);
+    std::cout << "Integral: " << quadMesh.integrateOverMesh(&quadratic, 2) << std::endl;
 
     return 0;
 }

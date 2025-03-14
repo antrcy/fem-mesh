@@ -116,7 +116,7 @@ private:
     std::unordered_map<int, int> markedElements;
 
 public:
-    // Indexing maps
+    // Indexing maps (provides conversion id - index and iterators)
     std::unordered_map<int, int> idToIndexNodes;
     std::unordered_map<int, int> idToIndexTriangles;
     std::unordered_map<int, int> idToIndexFacets;
@@ -174,6 +174,8 @@ public:
     const TriangleElement& getElement(int identifier) const;
     /** @brief Returns a reference to a facet in the mesh given a vector index. */
     const Facet& getFacet(int facetIndex) const;
+    /** @brief Returns nodes of a given element. */
+    std::array<Node, 3> getNodeFromElem(int identifier) const;
 
         // CONNECTIVITY RELATED
 
@@ -238,7 +240,7 @@ class FunctionSpace {
             /** @brief Sets all values to zero. */
             void setZero();
             /** @brief Evaluate an expression over each dof. */
-            void evaluate(functionType expression);
+            void evaluate(const functionType& expression);
             /** @brief Sets a certain value given a node Id. */
             void setValue(int nodeId, double value);
             /** @brief Sets an element's node to a certain value. */

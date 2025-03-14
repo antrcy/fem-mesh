@@ -41,8 +41,7 @@ bool Node::operator==(const Node& other) const{
 
 double Mesh::getTriangleAera(int identifier) const {
 
-    int index = idToIndexTriangles.at(identifier);
-    const TriangleElement& triangle = getElement(index);
+    const TriangleElement& triangle = getElement(identifier);
 
     int a, b, c;
     Eigen::Matrix<double, 3, 3> M3;
@@ -57,8 +56,7 @@ double Mesh::getTriangleAera(int identifier) const {
 
 double Mesh::getTrianglePerimeter(int identifier) const {
 
-    int index = idToIndexTriangles.at(identifier);
-    const TriangleElement& triangle = getElement(index);
+    const TriangleElement& triangle = getElement(identifier);
 
     int a, b, c;
     a = triangle[0]; b = triangle[1]; c = triangle[2];
@@ -76,8 +74,7 @@ double Mesh::getTrianglePerimeter(int identifier) const {
 
 double Mesh::getFacetLength(int identifier) const {
 
-    int index = idToIndexFacets.at(identifier);
-    const Facet& facet = getFacet(index);
+    const Facet& facet = getFacet(identifier);
 
     return tabNodes[facet[0]].distance(tabNodes[facet[1]]);
 }
@@ -265,16 +262,24 @@ int Mesh::getNbSegments() const {
     return res;
 }
 
-const Node& Mesh::getNode(int index) const {
+const Node& Mesh::getNode(int identifier) const {
+    int index = idToIndexNodes.at(identifier);
     return tabNodes[index];
 }
 
-const TriangleElement& Mesh::getElement(int index) const {
+const TriangleElement& Mesh::getElement(int identifier) const {
+    int index = idToIndexTriangles.at(identifier);
     return tabTriangle[index];
 }
 
-const Facet& Mesh::getFacet(int index) const {
+const Facet& Mesh::getFacet(int identifier) const {
+    int index = idToIndexFacets.at(identifier);
     return tabFacets[index];
+}
+
+std::array<Node, 3> Mesh::getNodeFromElem(int identifier) const {
+    std::array<int, 3> nodeIndex = (getElement(identifier)).globalNodeIndex;
+    return {tabNodes[nodeIndex[0]], tabNodes[nodeIndex[1]], tabNodes[nodeIndex[2]]};
 }
 
 void Mesh::buildConnectivity() {
@@ -559,7 +564,7 @@ void FunctionSpace::FunctionElement::setZero() {
     }
 }
 
-void FunctionSpace::FunctionElement::evaluate(functionType expression) {
+void FunctionSpace::FunctionElement::evaluate(const functionType& expression) {
     const Mesh& domain = M_functionSpace.M_domain;
 
     for (const auto& index : domain.idToIndexNodes){
