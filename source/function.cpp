@@ -1,7 +1,3 @@
-#include <iostream>
-#include <functional>
-#include <vector>
-
 #include "function.hpp"
 
 // FUNCTION SPACE

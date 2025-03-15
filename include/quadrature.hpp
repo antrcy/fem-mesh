@@ -1,17 +1,21 @@
 #ifndef QUADRATURE_H
 #define QUADRATURE_H
 
-#include <iostream>
 #include <map>
 
 #include "meshclass.hpp"
 
 typedef std::pair<std::array<double, 3>, double> nodeWeightPair;
 
+/**
+ * @brief Container for integration points and wheights.
+ */
 struct QuadratureRule {
-    int integrationOrder;
-    std::vector<nodeWeightPair> baryNodesAndWeights;
+    // Attributes 
+    int integrationOrder;                            // Order 1 to 3 come pre baked.
+    std::vector<nodeWeightPair> baryNodesAndWeights; // Integration points in barycentric coordinates with their wiehgts
 
+    // Constructor
     QuadratureRule(int order): integrationOrder(order) {
         switch(integrationOrder) {
         case 2:
@@ -39,13 +43,19 @@ struct QuadratureRule {
     static QuadratureRule getQuadratureRule(int order){return QuadratureRule(order);}
 };
 
+/**
+ * @brief Computes the integral of an expression over a triangle or the entire mesh.
+ */
 class MeshIntegration {
 public:
     MeshIntegration(const Mesh& mesh): M_mesh(mesh) {}
 
+    /** @brief Integrates an expression over a single triangle given a quadrature rule, ideal for repeated integration. */
+    double integrateOverTriangle(const functionType& f, const QuadratureRule& rule, int triangleId) const;
+    /** @brief Integrates an expression over a single triangle given a quadrature order. */
     double integrateOverTriangle(const functionType& f, int order, int triangleId) const;
-
-    double integrateOverMesh(const functionType& f, int order) const;
+    /** @brief Integrates an expression over the entire mesh given a quadrature order. */
+    double integrateOverMesh(const functionType& f, int order) const;   
 
 private:
     const Mesh& M_mesh;

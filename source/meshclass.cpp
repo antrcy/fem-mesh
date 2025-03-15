@@ -22,8 +22,8 @@ double Node::distance(const Node& other) const {
                      std::pow(coefficients[1] - other.coefficients[1], 2));
 }
 
-double Node::operator()(int i) const{
-    return coefficients[i];
+double Node::operator()(int localDof) const{
+    return coefficients[localDof];
 }
 
 std::ostream& operator<<(std::ostream& os, const Node& node) {

@@ -28,7 +28,7 @@ int main(int argc, char* argv[]){
 
     functionType fun(&quadratic);
 
-    Mesh mesh("../meshes/square2d_perforated.msh");
+    Mesh mesh("../meshes/square2d_M2.msh");
 
     mesh.domainSummary();
     mesh.buildConnectivity();

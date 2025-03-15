@@ -1,13 +1,15 @@
 #ifndef BIMAP_HPP
 #define BIMAP_HPP
 
-#include <iostream>
 #include <unordered_map>
 #include <stdexcept>
 
 template<typename key1, typename key2>
 class biMapIterator;
 
+/**
+ * @brief Provides a double key map similar to what boost::bimap does.
+ */
 template<typename key1, typename key2>
 class biMap{
 
@@ -55,6 +57,9 @@ public:
     }
 };
 
+/**
+ * @brief biMap constant iterator - self explanatory 
+ */
 template<typename key1, typename key2>
 class biMapIterator{
 
