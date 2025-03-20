@@ -81,16 +81,15 @@ void FEMSolver::matrixAssemblyAsym() {
     std::vector<Eigen::Triplet<double>> vecInit;
     vecInit.reserve(dimension);
 
-    for (const auto& elemId : domain.idToIndexTriangles) {
+    for (int elemIndex = 0; elemIndex < domain.getNbElements(); elemIndex ++) {
 
-        submatrixAssembly(Ak, Fk, elemId.first);
-        std::array<int, 3> nodeIndex = domain.getElement(elemId.first).globalNodeIndex;
-        std::array<int, 3> nodeId = domain.getNodeFromElem(elemId.first);
+        submatrixAssembly(Ak, Fk, elemIndex);
+        std::array<int, 3> nodeIndex = domain.getNodeFromElem(elemIndex);
 
         for (int s = 0; s < 3; ++ s) {
 
             int i = nodeIndex[s];
-            bool onBoundary = domain.isNodeOnBoundary(nodeId[s]);
+            bool onBoundary = domain.isNodeOnBoundary(i);
         
             for (int t = 0; t < 3; ++ t) {
                 int j = nodeIndex[t];
@@ -103,35 +102,29 @@ void FEMSolver::matrixAssemblyAsym() {
         }
     }
 
-    int k = 0;
-    for (auto it : domain.idToIndexNodes) {
-        if (domain.isNodeOnBoundary(it.first)) {
-            k = it.second;
-            vecInit.push_back(Eigen::Triplet<double>(k, k, 1.0));
-            vectorF(k) = functionG(domain.getNode(it.first)(0),
-                                   domain.getNode(it.first)(1));
-        }
+    for (auto i : domain.getBoundary()) {
+        vecInit.push_back(Eigen::Triplet<double>(i, i, 1.0));
+        vectorF(i) = functionG(domain.getNode(i)(0),
+                               domain.getNode(i)(1));
     }
 
     matrixA.setFromTriplets(vecInit.begin(), vecInit.end());
 
-    std::cout << matrixA << vectorF << std::endl;
+    typedef Eigen::SparseMatrix<double,Eigen::RowMajor>  rowSparseType;
 
-    for (auto it : domain.idToIndexNodes) {
-        if (domain.isFacetOnBoundary(it.first)) {
-            k = it.second;
-            for (typename sparseType::InnerIterator it(matrixA, k); it; ++it) {
+    for (int node = 0; node < domain.getNbNodes(); node ++) {
+
+        if (!domain.isNodeOnBoundary(node)) {
+            for (typename rowSparseType::InnerIterator it(matrixA, node); it; ++it) {
                 double gi = vectorF(it.col());
 
-                if (domain.isNodeOnBoundary(domain.getNodeId(it.col()))) {
-                    vectorF(k) -= vectorF(it.col()) * it.valueRef();
+                if (domain.isNodeOnBoundary(it.col())) {
+                    vectorF(node) -= gi * it.valueRef();
                     it.valueRef() = 0.0;
                 }
             }
         }
     }
-
-    std::cout << matrixA << vectorF << std::endl;
 }
 
 void FEMSolver::solveSystemGC() {
@@ -166,15 +159,15 @@ double FEMSolver::normL2(functionType expr) const {
 
     double norm = 0.0;
 
-    for (auto elemId : domain.idToIndexTriangles) {
-        P1TriangleBasis shape(domain, elemId.first);
+    for (int elem = 0; elem < domain.getNbElements(); elem ++) {
+        P1TriangleBasis shape(domain, elem);
         
         functionType squaredDiff([&](double x, double y) {
-            return std::pow(shape.functionPhi(0)(x, y) * (realExpr.getValue(elemId.first, 0) - solution.getValue(elemId.first, 0))
-                 + shape.functionPhi(1)(x, y) * (realExpr.getValue(elemId.first, 1) - solution.getValue(elemId.first, 1))
-                 + shape.functionPhi(2)(x, y) * (realExpr.getValue(elemId.first, 2) - solution.getValue(elemId.first, 2)), 2);
+            return std::pow(shape.functionPhi(0)(x, y) * (realExpr.getValue(elem, 0) - solution.getValue(elem, 0))
+                 + shape.functionPhi(1)(x, y) * (realExpr.getValue(elem, 1) - solution.getValue(elem, 1))
+                 + shape.functionPhi(2)(x, y) * (realExpr.getValue(elem, 2) - solution.getValue(elem, 2)), 2);
         });
-        norm += quadrature.integrateOverTriangle(squaredDiff, integrationOrder, elemId.first);
+        norm += quadrature.integrateOverTriangle(squaredDiff, integrationOrder, elem);
     }
 
     return std::sqrt(norm);
@@ -184,7 +177,6 @@ double FEMSolver::normL2(functionType expr) const {
 
 int FEMSolver::exportSolution(const std::string& path, const std::string& plotName) const {    
     std::ofstream ofile(path, std::ios::out);
-    biMap<int, int> order;
 
     if (ofile) {
         int index = 0;
@@ -195,22 +187,19 @@ int FEMSolver::exportSolution(const std::string& path, const std::string& plotNa
                 << "POINTS " << domain.getNbNodes() << " float\n";
 
 
-        for (auto id : domain.idToIndexNodes) {
-            const Node& node = domain.getNode(id.first);
-            ofile << node(0) << ' ' << node(1) << ' ' << 0 << '\n';
-
-            order.insert({id.first, index});
-            index ++;
+        for (int node = 0; node < domain.getNbNodes(); node ++) {
+            const Node& p = domain.getNode(node);
+            ofile << p(0) << ' ' << p(1) << ' ' << 0 << '\n';
         }
 
         const int nbTriangles = domain.getNbElements();
 
         ofile << "CELLS " << nbTriangles << ' ' << 4 * nbTriangles << '\n';
-        for (auto elem : domain.idToIndexTriangles) {
-            std::array<int, 3> nodeIds = domain.getNodeFromElem(elem.first);
-            ofile << 3 << ' ' << order.at_first(nodeIds[0])
-                       << ' ' << order.at_first(nodeIds[1])
-                       << ' ' << order.at_first(nodeIds[2]) << '\n';
+        for (int elem = 0; elem < domain.getNbElements(); elem ++) {
+            std::array<int, 3> nodeIds = domain.getNodeFromElem(elem);
+            ofile << 3 << ' ' << nodeIds[0]
+                       << ' ' << nodeIds[1]
+                       << ' ' << nodeIds[2] << '\n';
         }
 
         ofile << "CELL_TYPES " << nbTriangles;
@@ -222,7 +211,7 @@ int FEMSolver::exportSolution(const std::string& path, const std::string& plotNa
         
             
         for (int i = 0; i < domain.getNbNodes(); i ++) {
-            ofile << solution.getValue(order.at_second(i)) << '\n';
+            ofile << solution.getValue(i) << '\n';
         }
 
         ofile.close();

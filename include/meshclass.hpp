@@ -12,6 +12,7 @@
 #include <unordered_set>
 #include <map>
 #include <unordered_map>
+#include <set>
 #include <Eigen/Dense>
 
 #include "bimap.hpp"
@@ -25,12 +26,11 @@ struct Node {
 
     // Attributes
     std::array<double, 2> coefficients; // x, y coordinates
-    int identifier;
 
     // Constructors
-    Node(): coefficients({0.0, 0.0}), identifier(-1) {}
-    Node(double a, double b, int id): coefficients({a, b}), identifier(id) {}
-    Node(const std::array<double, 2>& c, int id): coefficients(c), identifier(id) {}
+    Node(): coefficients({0.0, 0.0}) {}
+    Node(double a, double b): coefficients({a, b}) {}
+    Node(const std::array<double, 2>& c, int id): coefficients(c) {}
 
     // Methods
     /** @brief Returns the euclidean distance between two nodes.*/
@@ -51,12 +51,9 @@ struct TriangleElement {
 
     // Attributes
     std::array<int, 3> globalNodeIndex;  // global node ids
-    int identifier;     // unique identifier in the mesh - same as the .msh id
 
     // Constructor
-    TriangleElement(const std::array<int, 3>& nodeId,
-                    const int id): globalNodeIndex(nodeId),
-                                   identifier(id) {}
+    TriangleElement(const std::array<int, 3>& nodeId): globalNodeIndex(nodeId) {}
     // Operator
     int operator[](int localNodeId) const {
         return globalNodeIndex[localNodeId];
@@ -71,14 +68,12 @@ struct Facet{
     // Attributes
     std::array<int, 2> globalNodeIndex; // global node index
     
-    int identifier;   // unique identifier in the mesh - same as the .msh id
     bool isBoundary;  // true if the facet is on the boundary of the mesh
     bool isSegment;   // true if the facet is an element segment in .msh
 
     // Constructors
-    Facet(): globalNodeIndex({-1, -1}), isBoundary(false), identifier(-1), isSegment(false) {}
-    Facet(const std::array<int, 2>& node, int id, bool flag) : 
-                identifier(id),
+    Facet(): globalNodeIndex({-1, -1}), isBoundary(false), isSegment(false) {}
+    Facet(const std::array<int, 2>& node, bool flag) : 
                 isBoundary(false),
                 isSegment(flag),
                 globalNodeIndex(node) {}
@@ -113,15 +108,13 @@ private:
     // Region markers
     biMap<std::string, int> physicalMarkers;
     std::map<int, int> markerDimension;
+
     std::unordered_map<int, int> markedFacets;
     std::unordered_map<int, int> markedElements;
 
-public:
-    // Indexing maps (provides conversion id - index and iterators)
-    std::unordered_map<int, int> idToIndexNodes;
-    std::unordered_map<int, int> idToIndexTriangles;
-    std::unordered_map<int, int> idToIndexFacets;
+    std::set<int> boundaryNodes;
 
+public:
     // Constructor
     Mesh(std::string);
 
@@ -156,6 +149,8 @@ public:
     double getTriangleAera(int identifier) const;
     /** @brief Retruns the perimeter of a triangle given its identifier. */
     double getTrianglePerimeter(int identifier) const;
+
+    const std::set<int>& getBoundary() const;
 
     /** @brief Adds a node to the mesh. */
     void addNode(const Node& node);

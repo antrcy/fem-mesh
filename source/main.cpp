@@ -17,11 +17,15 @@ void* operator new(std::size_t size) {
 */
 
 inline double constant(double x, double y) {
-    return 1.0;
+    return -4.0;
 }
 
 inline double quadratic(double x, double y) {
     return x*x + y*y;
+}
+
+inline double linear(double x, double y) {
+    return x + y;
 }
 
 inline double zero(double x, double y) {
@@ -33,7 +37,7 @@ int main(int argc, char* argv[]){
 
     functionType fun(&quadratic);
 
-    Mesh mesh("../meshes/square2d_4elt.msh");
+    Mesh mesh("../meshes/square2d_M2.msh");
 
     mesh.domainSummary();
     mesh.buildConnectivity();
@@ -42,6 +46,7 @@ int main(int argc, char* argv[]){
     mesh.printTriangles();
     mesh.printNodes();
     */
+
 
     std::cout << "Number of nodes: " << mesh.getNbNodes() << std::endl;
     std::cout << "Number of elements: " << mesh.getNbElements() << std::endl;
@@ -77,12 +82,12 @@ int main(int argc, char* argv[]){
     MeshIntegration quadMesh(mesh);
     std::cout << "Integral: " << quadMesh.integrateOverMesh(&quadratic, 2) << std::endl;
 
-    FEMSolver solver(mesh, &zero, &constant, 1);
+    FEMSolver solver(mesh, &constant, &quadratic, 3);
     solver.matrixAssemblyAsym();
     solver.solveSystemGC();
     solver.exportSolution("test.vtk", "test");
 
-    std::cout << "L2 Error : " << solver.normL2(&constant) << std::endl;
+    std::cout << "L2 Error : " << solver.normL2(&quadratic) << std::endl;
 
     return 0;
 }

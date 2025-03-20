@@ -37,8 +37,8 @@ double MeshIntegration::integrateOverMesh(const functionType& f, int order) cons
     QuadratureRule quadRule = QuadratureRule::getQuadratureRule(order);
     double integral = 0.0;
 
-    for (const auto& triangle : M_mesh.idToIndexTriangles) {
-        integral += integrateOverTriangle(f, quadRule, triangle.first);
+    for (int triangleIndex = 0; triangleIndex < M_mesh.getNbElements(); triangleIndex ++) {
+        integral += integrateOverTriangle(f, quadRule, triangleIndex);
     }
 
     return integral;
