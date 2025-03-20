@@ -12,6 +12,7 @@
 #include <unordered_set>
 #include <map>
 #include <unordered_map>
+#include <Eigen/Dense>
 
 #include "bimap.hpp"
 
@@ -174,10 +175,14 @@ public:
     const TriangleElement& getElement(int identifier) const;
     /** @brief Returns a reference to a facet in the mesh given a vector index. */
     const Facet& getFacet(int facetIndex) const;
-    /** @brief Returns nodes of a given element. */
-    std::array<Node, 3> getNodeFromElem(int identifier) const;
+    /** @brief Returns node Ids of a given element. */
+    std::array<int, 3> getNodeFromElem(int identifier) const;
+    /** @brief Returns node reference of a given element. */
+    const Node& getNodeFromElem(int identifier, int localDof) const;
 
         // CONNECTIVITY RELATED
+
+    int getNodeId(int nodeIndex) const;
 
     /** @brief Build connectivity maps for the mesh. */
     void buildConnectivity();
@@ -218,9 +223,8 @@ public:
     double meshAera() const;
 
     /** @brief Make a .vtk file of the mesh for plotting with optional functional. */
-    int exportToVTK(const std::string& path, const std::string& plotName, const functionType& function = 0);
+    int exportToVTK(const std::string& path, const std::string& plotName, const functionType& function = 0) const;
 };
-
 
 class FunctionSpace {
     public:
@@ -239,6 +243,8 @@ class FunctionSpace {
     
             /** @brief Sets all values to zero. */
             void setZero();
+            /** @brief Initialize the elements data with an Eigen vector. */
+            void initialize(const Eigen::VectorXd& dataVector);
             /** @brief Evaluate an expression over each dof. */
             void evaluate(const functionType& expression);
             /** @brief Sets a certain value given a node Id. */
@@ -247,6 +253,8 @@ class FunctionSpace {
             void setValue(int elementId, int localIndex, double value);
             /** @brief Returns a value given a node Id. */
             double getValue(int nodeId) const;
+            /** @brief Returns a value given an element Id and a local Dof. */
+            double getValue(int elemId, int localDof) const;
     
         private:
             const FunctionSpace& M_functionSpace;

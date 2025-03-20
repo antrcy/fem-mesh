@@ -54,8 +54,10 @@ public:
     double integrateOverTriangle(const functionType& f, const QuadratureRule& rule, int triangleId) const;
     /** @brief Integrates an expression over a single triangle given a quadrature order. */
     double integrateOverTriangle(const functionType& f, int order, int triangleId) const;
+    /** @brief Integrates a constant value over a single triangle. */
+    double integrateOverTriangle(const double& value, int triangleId) const;
     /** @brief Integrates an expression over the entire mesh given a quadrature order. */
-    double integrateOverMesh(const functionType& f, int order) const;   
+    double integrateOverMesh(const functionType& f, int order) const;
 
 private:
     const Mesh& M_mesh;

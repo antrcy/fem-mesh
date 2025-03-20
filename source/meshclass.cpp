@@ -277,9 +277,16 @@ const Facet& Mesh::getFacet(int identifier) const {
     return tabFacets[index];
 }
 
-std::array<Node, 3> Mesh::getNodeFromElem(int identifier) const {
-    std::array<int, 3> nodeIndex = (getElement(identifier)).globalNodeIndex;
-    return {tabNodes[nodeIndex[0]], tabNodes[nodeIndex[1]], tabNodes[nodeIndex[2]]};
+std::array<int, 3> Mesh::getNodeFromElem(int identifier) const {
+    std::array<int, 3> nodeIndex = getElement(identifier).globalNodeIndex;
+    std::array<int, 3> nodeId = {tabNodes[nodeIndex[0]].identifier,
+                                 tabNodes[nodeIndex[1]].identifier,
+                                 tabNodes[nodeIndex[2]].identifier};
+    return nodeId;
+}
+
+const Node& Mesh::getNodeFromElem(int identifier, int localDof) const {
+    return tabNodes[getElement(identifier).globalNodeIndex[localDof]];
 }
 
 void Mesh::buildConnectivity() {
@@ -298,8 +305,10 @@ void Mesh::buildConnectivity() {
     std::map<int, std::array<int, 2>> facetToElementsTemp;
 
     for (int i = 0; i < nbFacets; i ++){
-        std::array<int, 2> node = swapFaceNodes(tabFacets[i].globalNodeIndex);
-        facetMap[node] = tabFacets[i];
+        std::array<int, 2> nodeIndex = tabFacets[i].globalNodeIndex;
+        std::array<int, 2> nodeId = swapFaceNodes({tabNodes[nodeIndex[0]].identifier,
+                                                   tabNodes[nodeIndex[1]].identifier});
+        facetMap[nodeId] = tabFacets[i];
         facetToElementsTemp[tabFacets[i].identifier] = {-1, -1};
     }
 
@@ -312,8 +321,9 @@ void Mesh::buildConnectivity() {
         std::array<int, 3> globalFacet = {-1, -1, -1};
 
         for (int f = 0; f < 3; ++ f){
-            std::array<int, 2> nodeId(getFaceNodes(tabTriangle[t], f));
-            nodeId = swapFaceNodes(nodeId);
+            std::array<int, 2> nodeIndex(getFaceNodes(tabTriangle[t], f));
+            std::array<int, 2> nodeId(swapFaceNodes({tabNodes[nodeIndex[0]].identifier,
+                                                     tabNodes[nodeIndex[1]].identifier}));
 
             if (facetMap.find(nodeId) == facetMap.end()){
                 facetId = nextFacetId;
@@ -359,6 +369,7 @@ void Mesh::buildConnectivity() {
     // Building facet array
     nbFacets = facetMap.size();
     tabFacets.resize(nbFacets);
+
     int index = 0;
 
     for (auto& facet : facetMap) {
@@ -412,15 +423,15 @@ std::array<int, 3> Mesh::getNeighborTriangles(int triangleId) const {
 
 bool Mesh::isFacetOnBoundary(int facetId) const {
     int index = idToIndexFacets.at(facetId);
-    return tabFacets[facetId].isBoundary;
+    return tabFacets[index].isBoundary;
 }
 
 bool Mesh::isNodeOnBoundary(int nodeId) const {
-    bool isOnBoundary = true;
+    int counter = 0;
     for (int facetId : nodeToFacets.at(nodeId)) {
-        isOnBoundary = isOnBoundary && isFacetOnBoundary(facetId);
+        counter += isFacetOnBoundary(facetId);
     }
-    return !isOnBoundary;
+    return (counter >= 2);
 }
 
 bool Mesh::isTriangleOnBoundary(int triangleId) const {
@@ -479,6 +490,10 @@ std::vector<int> Mesh::getMarkedFacet(const std::string& name) const {
     return facID;
 }
 
+int Mesh::getNodeId(int nodeIndex) const {
+    return tabNodes[nodeIndex].identifier;
+}
+
 double Mesh::meshPerimeter() const{
     double perimeter = 0.0;
 
@@ -501,7 +516,7 @@ double Mesh::meshAera() const{
     return aera;
 }
 
-int Mesh::exportToVTK(const std::string& path, const std::string& plotName, const functionType& function){
+int Mesh::exportToVTK(const std::string& path, const std::string& plotName, const functionType& function) const {
     std::ofstream ofile(path, std::ios::out);
 
     if (ofile) {
@@ -564,6 +579,16 @@ void FunctionSpace::FunctionElement::setZero() {
     }
 }
 
+void FunctionSpace::FunctionElement::initialize(const Eigen::VectorXd& dataVector) {
+    if (dataVector.size() != M_functionSpace.M_globalDof) {
+        throw std::invalid_argument{"Function dof does not match argument size.\n"};
+    }
+
+    for (int i = 0; i < dataVector.size(); i ++) {
+        M_data[i] = dataVector(i);
+    }
+}
+
 void FunctionSpace::FunctionElement::evaluate(const functionType& expression) {
     const Mesh& domain = M_functionSpace.M_domain;
 
@@ -584,4 +609,8 @@ void FunctionSpace::FunctionElement::setValue(int elementId, int localIndex, dou
 
 double FunctionSpace::FunctionElement::getValue(int id) const {
     return M_data[M_functionSpace.M_domain.idToIndexNodes.at(id)];
+}
+
+double FunctionSpace::FunctionElement::getValue(int elemId, int localDof) const {
+    return M_data[M_functionSpace.connectivity(elemId, localDof)];
 }

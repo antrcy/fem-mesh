@@ -5,6 +5,7 @@
 
 #include "meshclass.hpp"
 #include "quadrature.hpp"
+#include "fem.hpp"
 
 /*
 static int allocations = 0;
@@ -23,12 +24,16 @@ inline double quadratic(double x, double y) {
     return x*x + y*y;
 }
 
+inline double zero(double x, double y) {
+    return 0.0;
+}
+
 
 int main(int argc, char* argv[]){
 
     functionType fun(&quadratic);
 
-    Mesh mesh("../meshes/square2d_M2.msh");
+    Mesh mesh("../meshes/square2d_4elt.msh");
 
     mesh.domainSummary();
     mesh.buildConnectivity();
@@ -45,7 +50,6 @@ int main(int argc, char* argv[]){
     std::cout << "Number of segments: " << mesh.getNbSegments() << std::endl;
 
     mesh.getMarkedElements("\"Omega\"");
-    mesh.exportToVTK("test.vtk", "name", fun);
 
     /*
 
@@ -72,6 +76,13 @@ int main(int argc, char* argv[]){
     std::cout << "Perimeter: " << mesh.meshPerimeter() << std::endl;
     MeshIntegration quadMesh(mesh);
     std::cout << "Integral: " << quadMesh.integrateOverMesh(&quadratic, 2) << std::endl;
+
+    FEMSolver solver(mesh, &zero, &constant, 1);
+    solver.matrixAssemblyAsym();
+    solver.solveSystemGC();
+    solver.exportSolution("test.vtk", "test");
+
+    std::cout << "L2 Error : " << solver.normL2(&constant) << std::endl;
 
     return 0;
 }
