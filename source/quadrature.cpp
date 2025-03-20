@@ -15,7 +15,7 @@ double MeshIntegration::integrateOverTriangle(const functionType& f, const Quadr
 
                        pair.first[0] * nodes[0](1) +
                        pair.first[1] * nodes[1](1) +
-                       pair.first[2] * nodes[2](1)}, -1);
+                       pair.first[2] * nodes[2](1)});
 
         integral += surface * pair.second * f(quadNode(0), quadNode(1));
     }

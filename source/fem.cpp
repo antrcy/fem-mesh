@@ -1,6 +1,8 @@
 #include "fem.hpp"
 #include "bimap.hpp"
 
+functionType operator*(functionType f, functionType g);
+
 functionType P1TriangleBasis::functionPhi(int localDof) const {
     int a1 = (localDof + 1) % 3;
     int a2 = (localDof + 2) % 3;
@@ -25,6 +27,25 @@ Eigen::Vector2d P1TriangleBasis::gradientPhi(int localDof) const {
     return Eigen::Vector2d((p1(1) - p2(1)) / 2.0 / surface,
                            (p2(0) - p1(0)) / 2.0 / surface);
 }
+
+
+double P1TriangleBasis::localL2dot(int order, std::array<double, 3> coeffF, std::array<double, 3> coeffG) const {
+    MeshIntegration integrator(mesh);
+    functionType phi0 = functionPhi(0);
+    functionType phi1 = functionPhi(1);
+    functionType phi2 = functionPhi(2);
+
+    functionType funF([&, coeffF](double x, double y){
+        return coeffF[0] * phi0(x, y) + coeffF[1] * phi1(x, y) + coeffF[2] * phi2(x, y);
+    });
+
+    functionType funG([&, coeffG](double x, double y){
+        return coeffG[0] * phi0(x, y) + coeffG[1] * phi1(x, y) + coeffG[2] * phi2(x, y);
+    });
+
+    return integrator.integrateOverTriangle(funG * funF, order, elementId);
+}
+
 
 functionType operator*(functionType f, functionType g) {
     return [&](double x, double y) {
@@ -110,12 +131,10 @@ void FEMSolver::matrixAssemblyAsym() {
 
     matrixA.setFromTriplets(vecInit.begin(), vecInit.end());
 
-    typedef Eigen::SparseMatrix<double,Eigen::RowMajor>  rowSparseType;
-
     for (int node = 0; node < domain.getNbNodes(); node ++) {
 
         if (!domain.isNodeOnBoundary(node)) {
-            for (typename rowSparseType::InnerIterator it(matrixA, node); it; ++it) {
+            for (typename sparseType::InnerIterator it(matrixA, node); it; ++it) {
                 double gi = vectorF(it.col());
 
                 if (domain.isNodeOnBoundary(it.col())) {
@@ -161,13 +180,12 @@ double FEMSolver::normL2(functionType expr) const {
 
     for (int elem = 0; elem < domain.getNbElements(); elem ++) {
         P1TriangleBasis shape(domain, elem);
-        
-        functionType squaredDiff([&](double x, double y) {
-            return std::pow(shape.functionPhi(0)(x, y) * (realExpr.getValue(elem, 0) - solution.getValue(elem, 0))
-                 + shape.functionPhi(1)(x, y) * (realExpr.getValue(elem, 1) - solution.getValue(elem, 1))
-                 + shape.functionPhi(2)(x, y) * (realExpr.getValue(elem, 2) - solution.getValue(elem, 2)), 2);
-        });
-        norm += quadrature.integrateOverTriangle(squaredDiff, integrationOrder, elem);
+
+        std::array<double, 3> coeffs = {realExpr.getValue(elem, 0) - solution.getValue(elem, 0),
+                                        realExpr.getValue(elem, 1) - solution.getValue(elem, 1),
+                                        realExpr.getValue(elem, 2) - solution.getValue(elem, 2)};
+
+        norm += shape.localL2dot(integrationOrder, coeffs, coeffs);
     }
 
     return std::sqrt(norm);

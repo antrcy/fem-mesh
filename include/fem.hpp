@@ -17,16 +17,16 @@ private:
     int elementId;
     double surface;
 
-    FunctionSpace fspace;
-
 public:
-    P1TriangleBasis(const Mesh& mesh, int elemId) : mesh(mesh), elementId(elemId), fspace(mesh) {
+    P1TriangleBasis(const Mesh& mesh, int elemId) : mesh(mesh), elementId(elemId) {
         surface = mesh.getTriangleAera(elementId);
     }
 
     functionType functionPhi(int localDof) const;
 
     Eigen::Vector2d gradientPhi(int localDof) const;
+
+    double localL2dot(int order, std::array<double, 3> coeffF, std::array<double, 3> coeffG) const;
 };
 
 class FEMSolver {

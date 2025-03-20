@@ -30,7 +30,6 @@ struct Node {
     // Constructors
     Node(): coefficients({0.0, 0.0}) {}
     Node(double a, double b): coefficients({a, b}) {}
-    Node(const std::array<double, 2>& c, int id): coefficients(c) {}
 
     // Methods
     /** @brief Returns the euclidean distance between two nodes.*/

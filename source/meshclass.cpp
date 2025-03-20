@@ -125,7 +125,6 @@ Mesh::Mesh(std::string path) {
             std::getline(meshFile, lines);
         }
 
-
         // Get the nodes
         std::getline(meshFile, lines);
 
