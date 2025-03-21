@@ -27,6 +27,8 @@ public:
     Eigen::Vector2d gradientPhi(int localDof) const;
 
     double localL2dot(int order, std::array<double, 3> coeffF, std::array<double, 3> coeffG) const;
+
+    double localH1dot(int order, std::array<double, 3> coeffF, std::array<double, 3> coeffG) const;
 };
 
 class FEMSolver {
@@ -68,6 +70,7 @@ public:
     void solveSystemLU();
 
     double normL2(functionType expr) const;
+    double normH1(functionType expr) const;
 
     int exportSolution(const std::string& path, const std::string& plotName) const;
 

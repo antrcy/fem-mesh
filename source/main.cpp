@@ -47,7 +47,6 @@ int main(int argc, char* argv[]){
     mesh.printNodes();
     */
 
-
     std::cout << "Number of nodes: " << mesh.getNbNodes() << std::endl;
     std::cout << "Number of elements: " << mesh.getNbElements() << std::endl;
     std::cout << "Number of facets: " << mesh.getNbFacets() << std::endl;
@@ -88,6 +87,7 @@ int main(int argc, char* argv[]){
     solver.exportSolution("test.vtk", "test");
 
     std::cout << "L2 Error : " << solver.normL2(&quadratic) << std::endl;
+    std::cout << "H1 Error : " << solver.normH1(&quadratic) << std::endl;
 
     return 0;
 }

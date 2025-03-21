@@ -46,6 +46,17 @@ double P1TriangleBasis::localL2dot(int order, std::array<double, 3> coeffF, std:
     return integrator.integrateOverTriangle(funG * funF, order, elementId);
 }
 
+double P1TriangleBasis::localH1dot(int order, std::array<double, 3> coeffF, std::array<double, 3> coeffG) const {
+    MeshIntegration integrator(mesh);
+
+    double dot = localL2dot(order, coeffF, coeffG);
+
+    Eigen::Vector2d gradF(coeffF[0] * gradientPhi(0) + coeffF[1] * gradientPhi(1) + coeffF[2] * gradientPhi(2));
+    Eigen::Vector2d gradG(coeffG[0] * gradientPhi(0) + coeffG[1] * gradientPhi(1) + coeffG[2] * gradientPhi(2));
+
+    return dot + integrator.integrateOverTriangle(gradF.dot(gradG), elementId);
+}
+
 
 functionType operator*(functionType f, functionType g) {
     return [&](double x, double y) {
@@ -173,7 +184,6 @@ void FEMSolver::solveSystemLU() {
 
 double FEMSolver::normL2(functionType expr) const {
     FunctionSpace::FunctionElement realExpr = fspace.element();
-    MeshIntegration quadrature(domain);
     realExpr.evaluate(expr);
 
     double norm = 0.0;
@@ -189,6 +199,25 @@ double FEMSolver::normL2(functionType expr) const {
     }
 
     return std::sqrt(norm);
+}
+
+double FEMSolver::normH1(functionType expr) const {
+    FunctionSpace::FunctionElement realExpr = fspace.element();
+    realExpr.evaluate(expr);
+
+    double norm = 0.0;
+
+    for (int elem = 0; elem < domain.getNbElements(); elem ++) {
+        P1TriangleBasis shape(domain, elem);
+
+        std::array<double, 3> coeffs = {realExpr.getValue(elem, 0) - solution.getValue(elem, 0),
+                                        realExpr.getValue(elem, 1) - solution.getValue(elem, 1),
+                                        realExpr.getValue(elem, 2) - solution.getValue(elem, 2)};
+
+        norm += shape.localH1dot(integrationOrder, coeffs, coeffs);
+    }
+
+    return norm;
 }
 
 
