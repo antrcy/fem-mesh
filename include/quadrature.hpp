@@ -48,7 +48,7 @@ struct QuadratureRule {
  */
 class MeshIntegration {
 public:
-    MeshIntegration(const Mesh& mesh): M_mesh(mesh) {}
+    MeshIntegration(const Mesh& mesh): domain(mesh) {}
 
     /** @brief Integrates an expression over a single triangle given a quadrature rule, ideal for repeated integration. */
     double integrateOverTriangle(const functionType& f, const QuadratureRule& rule, int triangleId) const;
@@ -60,7 +60,7 @@ public:
     double integrateOverMesh(const functionType& f, int order) const;
 
 private:
-    const Mesh& M_mesh;
+    const Mesh& domain;
 };
 
 #endif

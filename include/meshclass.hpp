@@ -40,9 +40,6 @@ struct Node {
     bool operator==(const Node&) const; // For debugging purposes only
 };
 
-// Output operator
-std::ostream& operator<<(std::ostream& os, const Node& node);
-
 /**
  * @brief Represents a triangle element in the mesh. Can only exist within a mesh
  */
@@ -52,10 +49,10 @@ struct TriangleElement {
     std::array<int, 3> globalNodeIndex;  // global node ids
 
     // Constructor
-    TriangleElement(const std::array<int, 3>& nodeId): globalNodeIndex(nodeId) {}
+    TriangleElement(const std::array<int, 3>& nodeIndex): globalNodeIndex(nodeIndex) {}
     // Operator
-    int operator[](int localNodeId) const {
-        return globalNodeIndex[localNodeId];
+    int operator[](int localNodeIndex) const {
+        return globalNodeIndex[localNodeIndex];
     }
 };
 
@@ -77,8 +74,8 @@ struct Facet{
                 isSegment(flag),
                 globalNodeIndex(node) {}
 
-    int operator[](int localNodeId) const {
-        return globalNodeIndex[localNodeId];
+    int operator[](int localDof) const {
+        return globalNodeIndex[localDof];
     }
 };
 
@@ -96,13 +93,12 @@ private:
     std::vector<Node> tabNodes;                 // array of nodes
     std::vector<TriangleElement> tabTriangle;   // array of triangles
     std::vector<Facet> tabFacets;               // array of facets
-    int nextFacetId;
 
     // Connectivity maps
-    std::unordered_map<int, std::unordered_set<int>> nodeToElements; // nodeId -> set of elements
-    std::unordered_map<int, std::unordered_set<int>> nodeToFacets;   // nodeId -> set of facets
-    std::unordered_map<int, std::array<int, 2>> facetToElements;     // facetID -> set of elements
-    std::unordered_map<int, std::array<int, 3>> elementToFacets;     // elementId -> set of facets
+    std::unordered_map<int, std::unordered_set<int>> nodeToElements; // nodeIndex -> set of elements
+    std::unordered_map<int, std::unordered_set<int>> nodeToFacets;   // nodeIndex -> set of facets
+    std::unordered_map<int, std::array<int, 2>> facetToElements;     // facetIndex -> set of elements
+    std::unordered_map<int, std::array<int, 3>> elementToFacets;     // elementIndex -> set of facets
 
     // Region markers
     biMap<std::string, int> physicalMarkers;
@@ -124,8 +120,8 @@ public:
         {0, 1}
     }};
     
-    std::array<int, 2> getFaceNodes(const std::array<int, 3>& element, int localFacetId) {
-        return {element[localfacetToLocalNode[localFacetId][0]], element[localfacetToLocalNode[localFacetId][1]]};
+    std::array<int, 2> getFaceNodes(const std::array<int, 3>& element, int localDof) {
+        return {element[localfacetToLocalNode[localDof][0]], element[localfacetToLocalNode[localDof][1]]};
     }
 
     std::array<int, 2> getFaceNodes(const TriangleElement& element, int localFacetId) {
@@ -142,12 +138,12 @@ public:
 
         // ELEMENT RELATED METHODS
 
-    /** @brief Returns the length of a facet given its identifier. */
-    double getFacetLength(int identifier) const;
-    /** @brief Returns the aera of a triangle given its identifier. */
-    double getTriangleAera(int identifier) const;
-    /** @brief Retruns the perimeter of a triangle given its identifier. */
-    double getTrianglePerimeter(int identifier) const;
+    /** @brief Returns the length of a facet given its index. */
+    double getFacetLength(int index) const;
+    /** @brief Returns the aera of a triangle given its index. */
+    double getTriangleAera(int index) const;
+    /** @brief Retruns the perimeter of a triangle given its index. */
+    double getTrianglePerimeter(int index) const;
 
     const std::set<int>& getBoundary() const;
 
@@ -164,36 +160,34 @@ public:
     /** @brief Returns the number of segments marked facets in the mesh. */
     int getNbSegments() const;
     /** @brief Returns a reference to a node in the mesh given a vector index. */
-    const Node& getNode(int identifier) const;
+    const Node& getNode(int index) const;
     /** @brief Returns a reference to an element in the mesh given a vector index. */
-    const TriangleElement& getElement(int identifier) const;
+    const TriangleElement& getElement(int index) const;
     /** @brief Returns a reference to a facet in the mesh given a vector index. */
     const Facet& getFacet(int facetIndex) const;
-    /** @brief Returns node Ids of a given element. */
-    std::array<int, 3> getNodeFromElem(int identifier) const;
+    /** @brief Returns node indexes of a given element. */
+    std::array<int, 3> getNodeFromElem(int index) const;
     /** @brief Returns node reference of a given element. */
-    const Node& getNodeFromElem(int identifier, int localDof) const;
+    const Node& getNodeFromElem(int index, int localDof) const;
 
         // CONNECTIVITY RELATED
-
-    int getNodeId(int nodeIndex) const;
 
     /** @brief Build connectivity maps for the mesh. */
     void buildConnectivity();
     /** @brief Returns a vector of element IDs that contain a given node. */
-    std::vector<int> getElementsForNode(int nodeId) const;
+    std::vector<int> getElementsForNode(int nodeIndex) const;
     /** @brief Returns a vector of facet IDs that contain a given node. */
-    std::vector<int> getFacetsForNode(int nodeId) const;
+    std::vector<int> getFacetsForNode(int nodeIndex) const;
     /** @brief Returns a vector of element IDs that contain a given facet. */
-    std::array<int, 2> getElementsForFacets(int facetId) const;
+    std::array<int, 2> getElementsForFacets(int facetIndex) const;
     /** @brief Returns a vector of element IDs that are neighbors of a given element. */
-    std::array<int, 3> getNeighborTriangles(int triangleId) const;
+    std::array<int, 3> getNeighborTriangles(int triangleIndex) const;
     /** @brief Returns a boolean indicating whether a given facet is on the boundary. */
-    bool isFacetOnBoundary(int facetId) const;
+    bool isFacetOnBoundary(int facetIndex) const;
     /** @brief Returns a boolean indicating whether a given node is on the boundary. */
-    bool isNodeOnBoundary(int nodeId) const;
+    bool isNodeOnBoundary(int nodeIndex) const;
     /** @brief Returns a boolean indicating whether a given element is on the boundary. */
-    bool isTriangleOnBoundary(int triangleId) const;
+    bool isTriangleOnBoundary(int triangleIndex) const;
 
         // FILTERS AND PHYSICAL NAMES
 
@@ -223,16 +217,17 @@ public:
 class FunctionSpace {
     public:
     
-        FunctionSpace(const Mesh& mesh): M_domain(mesh) {
-            M_globalDof = M_domain.getNbNodes();
+        FunctionSpace(const Mesh& mesh): domain(mesh) {
+            globalDofs = domain.getNbNodes();
         }
-    
-        unsigned int connectivity(int elementId, int localIndex) const;
+        
+        /** @brief Provides mapping between elements and global node indexes. */
+        unsigned int connectivity(int elemIndex, int localDof) const;
         
         class FunctionElement {
         public:
-            FunctionElement(const FunctionSpace& funcSpace) : M_functionSpace(funcSpace) {
-                M_data.resize(funcSpace.M_globalDof);
+            FunctionElement(const FunctionSpace& funcSpace) : fspace(funcSpace) {
+                data.resize(funcSpace.globalDofs);
             }
     
             /** @brief Sets all values to zero. */
@@ -241,25 +236,25 @@ class FunctionSpace {
             void initialize(const Eigen::VectorXd& dataVector);
             /** @brief Evaluate an expression over each dof. */
             void evaluate(const functionType& expression);
-            /** @brief Sets a certain value given a node Id. */
-            void setValue(int nodeId, double value);
+            /** @brief Sets a certain value given a node Index. */
+            void setValue(int nodeIndex, double value);
             /** @brief Sets an element's node to a certain value. */
-            void setValue(int elementId, int localIndex, double value);
-            /** @brief Returns a value given a node Id. */
-            double getValue(int nodeId) const;
+            void setValue(int elemIndex, int localDof, double value);
+            /** @brief Returns a value given a node Index. */
+            double getValue(int nodeIndex) const;
             /** @brief Returns a value given an element Id and a local Dof. */
-            double getValue(int elemId, int localDof) const;
+            double getValue(int elemIndex, int localDof) const;
     
         private:
-            const FunctionSpace& M_functionSpace;
-            std::vector<double> M_data;
+            const FunctionSpace& fspace;
+            std::vector<double> data;
         };
     
         FunctionElement element() const {return FunctionElement(*this);}
     
     private:
-        const Mesh& M_domain;
-        unsigned int M_globalDof;
+        const Mesh& domain;
+        unsigned int globalDofs;
     };
 
 #endif

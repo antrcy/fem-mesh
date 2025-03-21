@@ -1,12 +1,12 @@
 #include "quadrature.hpp"
 
 double MeshIntegration::integrateOverTriangle(const functionType& f, const QuadratureRule& rule, int triangleId) const {
-    double surface = M_mesh.getTriangleAera(triangleId);
+    double surface = domain.getTriangleAera(triangleId);
     double integral = 0.0;
 
-    std::array<Node, 3> nodes = {M_mesh.getNodeFromElem(triangleId, 0),
-                                 M_mesh.getNodeFromElem(triangleId, 1),
-                                 M_mesh.getNodeFromElem(triangleId, 2)};
+    std::array<Node, 3> nodes = {domain.getNodeFromElem(triangleId, 0),
+                                 domain.getNodeFromElem(triangleId, 1),
+                                 domain.getNodeFromElem(triangleId, 2)};
 
     for (const auto& pair : rule.baryNodesAndWeights) {
         Node quadNode({pair.first[0] * nodes[0](0) +
@@ -29,7 +29,7 @@ double MeshIntegration::integrateOverTriangle(const functionType& f, int order, 
 }
 
 double MeshIntegration::integrateOverTriangle(const double& value, int triangleId) const {
-    return M_mesh.getTriangleAera(triangleId) * value;
+    return domain.getTriangleAera(triangleId) * value;
 }
 
 
@@ -37,7 +37,7 @@ double MeshIntegration::integrateOverMesh(const functionType& f, int order) cons
     QuadratureRule quadRule = QuadratureRule::getQuadratureRule(order);
     double integral = 0.0;
 
-    for (int triangleIndex = 0; triangleIndex < M_mesh.getNbElements(); triangleIndex ++) {
+    for (int triangleIndex = 0; triangleIndex < domain.getNbElements(); triangleIndex ++) {
         integral += integrateOverTriangle(f, quadRule, triangleIndex);
     }
 

@@ -529,63 +529,63 @@ int Mesh::exportToVTK(const std::string& path, const std::string& plotName, cons
         }
 
         ofile.close();
-        return 1;
+        return 0;
     }
 
     ofile.close();
-    return 0;
+    return 1;
 }
 
 /**
  * FUNCTIONSPACE CLASS IMPLEMENTATION
 */
 
-unsigned int FunctionSpace::connectivity(int elementId, int localIndex) const {
-    int globalIndex = (M_domain.getElement(elementId)).globalNodeIndex[localIndex];
+unsigned int FunctionSpace::connectivity(int elemIndex, int localDof) const {
+    int globalIndex = (domain.getElement(elemIndex)).globalNodeIndex[localDof];
     return globalIndex;
 }
 
 // FUNCTION ELEMENT
 
 void FunctionSpace::FunctionElement::setZero() {
-    int n = M_functionSpace.M_globalDof;
+    int n = fspace.globalDofs;
     for (int i = 0; i < n; i ++){
-        M_data[i] = 0;
+        data[i] = 0;
     }
 }
 
 void FunctionSpace::FunctionElement::initialize(const Eigen::VectorXd& dataVector) {
-    if (dataVector.size() != M_functionSpace.M_globalDof) {
+    if (dataVector.size() != fspace.globalDofs) {
         throw std::invalid_argument{"Function dof does not match argument size.\n"};
     }
 
     for (int i = 0; i < dataVector.size(); i ++) {
-        M_data[i] = dataVector(i);
+        data[i] = dataVector(i);
     }
 }
 
 void FunctionSpace::FunctionElement::evaluate(const functionType& expression) {
-    const Mesh& domain = M_functionSpace.M_domain;
+    const Mesh& domain = fspace.domain;
 
     for (int nodeIndex = 0; nodeIndex < domain.getNbNodes(); nodeIndex ++){
         const Node& point = domain.getNode(nodeIndex);
 
-        M_data[nodeIndex] = expression(point(0), point(1));
+        data[nodeIndex] = expression(point(0), point(1));
     }
 }
 
-void FunctionSpace::FunctionElement::setValue(int index, double value) {
-    M_data[index] = value;
+void FunctionSpace::FunctionElement::setValue(int nodeIndex, double value) {
+    data[nodeIndex] = value;
 }
 
-void FunctionSpace::FunctionElement::setValue(int elementId, int localIndex, double value) {
-    M_data[M_functionSpace.connectivity(elementId, localIndex)] = value;
+void FunctionSpace::FunctionElement::setValue(int elemIndex, int localDof, double value) {
+    data[fspace.connectivity(elemIndex, localDof)] = value;
 }
 
-double FunctionSpace::FunctionElement::getValue(int id) const {
-    return M_data[id];
+double FunctionSpace::FunctionElement::getValue(int nodeIndex) const {
+    return data[nodeIndex];
 }
 
-double FunctionSpace::FunctionElement::getValue(int elemId, int localDof) const {
-    return M_data[M_functionSpace.connectivity(elemId, localDof)];
+double FunctionSpace::FunctionElement::getValue(int elemIndex, int localDof) const {
+    return data[fspace.connectivity(elemIndex, localDof)];
 }
