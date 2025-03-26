@@ -217,7 +217,7 @@ double FEMSolver::normH1(functionType expr) const {
         norm += shape.localH1dot(integrationOrder, coeffs, coeffs);
     }
 
-    return norm;
+    return std::sqrt(norm);
 }
 
 

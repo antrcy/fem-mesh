@@ -37,7 +37,7 @@ int main(int argc, char* argv[]){
 
     functionType fun(&quadratic);
 
-    Mesh mesh("../meshes/square2d_M2.msh");
+    Mesh mesh("../meshes/square2d_perforated.msh");
 
     mesh.domainSummary();
     mesh.buildConnectivity();
@@ -52,8 +52,6 @@ int main(int argc, char* argv[]){
     std::cout << "Number of facets: " << mesh.getNbFacets() << std::endl;
 
     std::cout << "Number of segments: " << mesh.getNbSegments() << std::endl;
-
-    mesh.getMarkedElements("\"Omega\"");
 
     /*
 
