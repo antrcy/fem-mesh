@@ -50,6 +50,8 @@ class MeshIntegration {
 public:
     MeshIntegration(const Mesh& mesh): domain(mesh) {}
 
+    /** @brief Integrates an expression over the reference element. */
+    double integrateOverRef(const functionType& f, const QuadratureRule& rule) const;
     /** @brief Integrates an expression over a single triangle given a quadrature rule, ideal for repeated integration. */
     double integrateOverTriangle(const functionType& f, const QuadratureRule& rule, int triangleId) const;
     /** @brief Integrates an expression over a single triangle given a quadrature order. */

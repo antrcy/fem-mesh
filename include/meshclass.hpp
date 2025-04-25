@@ -38,10 +38,11 @@ struct Node {
     // Operators
     double operator()(int) const;
     bool operator==(const Node&) const; // For debugging purposes only
+    friend std::ostream &operator<<(std::ostream&, const Node&); 
 };
 
 /**
- * @brief Represents a triangle element in the mesh. Can only exist within a mesh
+ * @brief Represents a triangle element in the mesh. Can only exist within a mesh.
  */
 struct TriangleElement {
 
@@ -123,11 +124,11 @@ public:
     std::array<int, 2> getFaceNodes(const std::array<int, 3>& element, int localDof) {
         return {element[localfacetToLocalNode[localDof][0]], element[localfacetToLocalNode[localDof][1]]};
     }
-
+    
     std::array<int, 2> getFaceNodes(const TriangleElement& element, int localFacetId) {
         return {element[localfacetToLocalNode[localFacetId][0]], element[localfacetToLocalNode[localFacetId][1]]};
     }
-
+    /** @brief Swap two array coefficients so that they are ordered numerically. */
     std::array<int, 2> swapFaceNodes(const std::array<int, 2>& faceNodes) {
         std::array<int, 2> copy = faceNodes;
         if (faceNodes[0] > faceNodes[1]) {
@@ -135,6 +136,58 @@ public:
         }
         return copy;
     }
+
+        // GEOMETRIC TRANSFORMATION
+
+    /**
+     * @brief Implementation of the affine transformation from reference element to a real element.
+     */
+    class GeometricTransformation {
+    public:
+        GeometricTransformation(const Mesh& mesh): domain(mesh) {
+            x0 = Eigen::Vector2d({0.0, 0.0});
+            x1 = Eigen::Vector2d({1.0, 0.0});
+            x2 = Eigen::Vector2d({0.0, 1.0});
+        }
+
+        GeometricTransformation(const Mesh& mesh, int elem): domain(mesh) {
+            x0 = Eigen::Vector2d(domain.getNodeFromElem(elem, 0).coefficients.data());
+            x1 = Eigen::Vector2d(domain.getNodeFromElem(elem, 1).coefficients.data());
+            x2 = Eigen::Vector2d(domain.getNodeFromElem(elem, 2).coefficients.data());
+        }
+
+        /** @brief Switch which element the transformation points to. */
+        void initialize(int elem) {
+            x0 = Eigen::Vector2d(domain.getNodeFromElem(elem, 0).coefficients.data());
+            x1 = Eigen::Vector2d(domain.getNodeFromElem(elem, 1).coefficients.data());
+            x2 = Eigen::Vector2d(domain.getNodeFromElem(elem, 2).coefficients.data());
+        }
+
+        /** @brief Maps a given point in reference barycentring coordinates to its real element tranformation. */
+        Eigen::Vector2d map(const Eigen::Vector2d& coord) const {
+            return x0 * (1 - coord(0) - coord(1)) + x1 * (coord(0)) + x2 * (coord(1));
+        }
+
+        /** @brief Returns the jacobian of the affine transformation from reference to real. */
+        Eigen::Matrix2d jacobian() const {
+            return Eigen::Matrix2d({{-x0(0) + x1(0), -x0(0) + x2(0)},
+                                    {-x0(1) + x1(1), -x0(1) + x2(1)}});
+        }
+
+        /** @brief Returns the inverse jacobian of the affine transformation from reference to real. */
+        Eigen::Matrix2d jacobianInverse() const {
+            return jacobian().inverse();
+        }
+
+        /** @brief Returns the determinant of the jacobian of the affine transformation from reference to real. */
+        double jacobianDeterminant() const {
+            return jacobian().determinant();
+        }
+
+    private:
+        const Mesh& domain;
+        Eigen::Vector2d x0, x1, x2;
+    };
 
         // ELEMENT RELATED METHODS
 
@@ -144,7 +197,7 @@ public:
     double getTriangleAera(int index) const;
     /** @brief Retruns the perimeter of a triangle given its index. */
     double getTrianglePerimeter(int index) const;
-
+    /** @brief Returns a reference to the set of boundary index. */
     const std::set<int>& getBoundary() const;
 
     /** @brief Adds a node to the mesh. */
@@ -209,11 +262,16 @@ public:
     double meshPerimeter() const;
     /** @brief Returns the mesh aera. */
     double meshAera() const;
+    /** @brief Reference element testing */
+    double meshAera_ref() const;
 
     /** @brief Make a .vtk file of the mesh for plotting with optional functional. */
     int exportToVTK(const std::string& path, const std::string& plotName, const functionType& function = 0) const;
 };
 
+/**
+ * @brief FunctionSpace to handle data over a mesh.
+ */
 class FunctionSpace {
     public:
     
@@ -224,6 +282,9 @@ class FunctionSpace {
         /** @brief Provides mapping between elements and global node indexes. */
         unsigned int connectivity(int elemIndex, int localDof) const;
         
+        /**
+         * @brief Function element within a function space
+         */ 
         class FunctionElement {
         public:
             FunctionElement(const FunctionSpace& funcSpace) : fspace(funcSpace) {
@@ -249,7 +310,8 @@ class FunctionSpace {
             const FunctionSpace& fspace;
             std::vector<double> data;
         };
-    
+        
+        /** Returns a function element within function space. */
         FunctionElement element() const {return FunctionElement(*this);}
     
     private:

@@ -11,38 +11,47 @@ using functionType = std::function<double (double, double)>;
 using funElem = FunctionSpace::FunctionElement;
 using sparseType = Eigen::SparseMatrix<double, Eigen::RowMajor>;
 
-class P1TriangleBasis {
-private:
-    const Mesh& mesh;
-    int elementId;
-    double surface;
+/**
+ * @brief Function basis for Lagrange elements in approximation space
+ */
+class BasisFunction {
+protected:
+    const Mesh& domain;
 
 public:
-    P1TriangleBasis(const Mesh& mesh, int elemId) : mesh(mesh), elementId(elemId) {
-        surface = mesh.getTriangleAera(elementId);
-    }
+    BasisFunction(const Mesh& mesh): domain(mesh) {}
 
-    functionType functionPhi(int localDof) const;
-
-    Eigen::Vector2d gradientPhi(int localDof) const;
-
-    double localL2dot(int order, std::array<double, 3> coeffF, std::array<double, 3> coeffG) const;
-
-    double localH1dot(int order, std::array<double, 3> coeffF, std::array<double, 3> coeffG) const;
+    virtual Eigen::MatrixXd evaluate(Eigen::Vector2d coord) const = 0;
+    virtual Eigen::MatrixXd gradient(Eigen::Vector2d coord) const = 0;
 };
 
+/**
+ * @brief P1 Lagrange function basis implementation
+ */
+class P1LagrangeBasis: public BasisFunction {
+public:
+    P1LagrangeBasis(const Mesh& mesh): BasisFunction(mesh) {}
+
+    Eigen::MatrixXd evaluate(Eigen::Vector2d coord) const;
+    Eigen::MatrixXd gradient(Eigen::Vector2d coord) const;
+};
+
+/**
+ * @brief Solver class for finite element system.
+ */
 class FEMSolver {
 private:
-    bool assembled;
-    const Mesh& domain;
-    const functionType& functionF;
-    const functionType& functionG;
-    FunctionSpace fspace;
+    bool assembled;                // flag true if matrixAssembly step is done
+    const Mesh& domain;            // discretized domain
+    const functionType& functionF; // source
+    const functionType& functionG; // boundary
 
-    int dimension;
-    sparseType matrixA;
-    Eigen::VectorXd vectorF;
-    FunctionSpace::FunctionElement solution;
+    FunctionSpace fspace; // function space for the solution
+
+    int dimension;           // equals to number of nodes
+    sparseType matrixA;      // complete stiffness matrix
+    Eigen::VectorXd vectorF; // complete stiffness vector
+    FunctionSpace::FunctionElement solution; // function element of the solution
 
     int integrationOrder;
 
@@ -62,18 +71,25 @@ public:
         vectorF.setZero(); solution.setZero();
     }
 
+    /** @brief Assemble element matrix. */
     void submatrixAssembly(Eigen::Matrix3d& elemAk, Eigen::Vector3d& elemFk, int triangleId) const;
-    void matrixAssemblySym();
-    void matrixAssemblyAsym();
+    /** @brief Assemble stiffness matrix. */
+    void matrixAssembly();
 
+    /** @brief Solve the system using conjugate gradient. */
     void solveSystemGC();
+    /** @brief Solve the system with LU decomposition. */
     void solveSystemLU();
 
-    double normL2(functionType expr) const;
-    double normH1(functionType expr) const;
+    /** @brief Computes the L2 distance between the solution and expr in P1 basis. */
+    double normL2(functionType Solution, int order) const;
+    /** @brief Computes the H1 distance between the solution and expr in P1 basis. */
+    double normH1(functionType Solution, functionType grad_x, functionType grad_y, int order) const;
 
+    /** @brief Builds a VTK file to visualize the solution with ParaView. */
     int exportSolution(const std::string& path, const std::string& plotName) const;
 
+    /** @brief Reset matrix and vector content. */
     void reset(){
         matrixA.resize(dimension, dimension);
         vectorF.setZero();

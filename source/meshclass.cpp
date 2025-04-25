@@ -10,6 +10,7 @@
 #include <stdexcept>
 
 #include <Eigen/Dense>
+
 #include "meshclass.hpp"
 #include "bimap.hpp"
 
@@ -22,21 +23,21 @@ double Node::distance(const Node& other) const {
                      std::pow(coefficients[1] - other.coefficients[1], 2));
 }
 
-double Node::operator()(int localDof) const{
+double Node::operator()(int localDof) const {
     return coefficients[localDof];
 }
 
-std::ostream& operator<<(std::ostream& os, const Node& node) {
-    os << "(" << node.coefficients[0] << ", " << node.coefficients[1] << ")";
-    return os;
-}
-
-bool Node::operator==(const Node& other) const{
+bool Node::operator==(const Node& other) const {
     return (coefficients[0] - other.coefficients[0]) < 1e-6 && coefficients[1] == other.coefficients[1] < 1e-6;
 }
 
+std::ostream& operator<<(std::ostream& out, const Node& node) {
+    out << '(' << node.coefficients[0] << ',' << node.coefficients[1] << ')';
+    return out;
+}
+
 /**
- * TRIANGLE ELEMENT METHODS
+ * TRIANGLE ELEMENT METHODS (through Mesh)
 */
 
 double Mesh::getTriangleAera(int identifier) const {
@@ -69,7 +70,7 @@ double Mesh::getTrianglePerimeter(int identifier) const {
 }
 
 /**
- * FACET METHODS
+ * FACET METHODS (through Mesh)
 */
 
 double Mesh::getFacetLength(int identifier) const {
@@ -219,6 +220,10 @@ Mesh::Mesh(std::string path) {
     }
 }
 
+const std::set<int>& Mesh::getBoundary() const {
+    return boundaryNodes;
+}
+
 void Mesh::addNode(const Node& node) {
     tabNodes.push_back(node);
 }
@@ -361,10 +366,6 @@ void Mesh::buildConnectivity() {
     }
 }
 
-const std::set<int>& Mesh::getBoundary() const {
-    return boundaryNodes;
-}
-
 std::vector<int> Mesh::getElementsForNode(int nodeId) const {
     return std::vector<int>(nodeToElements.at(nodeId).begin(), nodeToElements.at(nodeId).end());
 }
@@ -422,7 +423,10 @@ bool Mesh::isTriangleOnBoundary(int triangleId) const {
 }
 
 void Mesh::domainSummary() const{
-    std::cout << "$Physical Names" << std::endl;
+    std::cout << std::endl;
+
+    std::cout << "---Domain Summary---\n";
+    std::cout << "[Physical Names]\n";
 
     for (auto it = physicalMarkers.get_iterator(); !it.end(); ++it) {
 
@@ -435,14 +439,23 @@ void Mesh::domainSummary() const{
             counter += (facet.second == it.get_right());
         }
 
-        std::cout << " : " << counter << std::endl;
+        std::cout << ": " << counter << std::endl;
     }
+
+    std::cout << "\n[Composition]\n";
+
+    std::cout << " - Number of nodes: " << getNbNodes() << std::endl;
+    std::cout << " - Number of elements: " << getNbElements() << std::endl;
+    std::cout << " - Number of facets: " << getNbFacets() << std::endl;
+    std::cout << " - Number of segments: " << getNbSegments() << std::endl;
+
+    std::cout << "--------------------\n";
 }
 
 std::vector<int> Mesh::getMarkedElements(const std::string& name) const {
     std::vector<int> elemID; elemID.reserve(markedElements.size());
 
-    int physicalID = physicalMarkers.at_first(name);
+    int physicalID = physicalMarkers.at_left(name);
 
     for (const auto& elem : markedElements){
         if (elem.second == physicalID) {
@@ -457,7 +470,7 @@ std::vector<int> Mesh::getMarkedElements(const std::string& name) const {
 std::vector<int> Mesh::getMarkedFacet(const std::string& name) const {
     std::vector<int> facID; facID.reserve(markedFacets.size());
 
-    int physicalID = physicalMarkers.at_first(name);
+    int physicalID = physicalMarkers.at_left(name);
 
     for (const auto& face : markedFacets){
         if (face.second == physicalID) {
@@ -567,7 +580,7 @@ void FunctionSpace::FunctionElement::initialize(const Eigen::VectorXd& dataVecto
 void FunctionSpace::FunctionElement::evaluate(const functionType& expression) {
     const Mesh& domain = fspace.domain;
 
-    for (int nodeIndex = 0; nodeIndex < domain.getNbNodes(); nodeIndex ++){
+    for (int nodeIndex = 0; nodeIndex < domain.getNbNodes(); nodeIndex ++) {
         const Node& point = domain.getNode(nodeIndex);
 
         data[nodeIndex] = expression(point(0), point(1));

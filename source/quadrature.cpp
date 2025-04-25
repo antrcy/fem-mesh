@@ -1,5 +1,16 @@
 #include "quadrature.hpp"
 
+double MeshIntegration::integrateOverRef(const functionType& f, const QuadratureRule& rule) const {
+    double integral = 0.0;
+    for (const auto& pair : rule.baryNodesAndWeights) {
+        Node quadNode({pair.first[1], pair.first[2]});
+
+        integral += pair.second * f(quadNode(0), quadNode(1));
+    }
+
+    return integral / 2.0;
+}
+
 double MeshIntegration::integrateOverTriangle(const functionType& f, const QuadratureRule& rule, int triangleId) const {
     double surface = domain.getTriangleAera(triangleId);
     double integral = 0.0;
@@ -17,10 +28,10 @@ double MeshIntegration::integrateOverTriangle(const functionType& f, const Quadr
                        pair.first[1] * nodes[1](1) +
                        pair.first[2] * nodes[2](1)});
 
-        integral += surface * pair.second * f(quadNode(0), quadNode(1));
+        integral += pair.second * f(quadNode(0), quadNode(1));
     }
 
-    return integral; 
+    return integral * surface; 
 }
 
 double MeshIntegration::integrateOverTriangle(const functionType& f, int order, int triangleId) const {
@@ -31,7 +42,6 @@ double MeshIntegration::integrateOverTriangle(const functionType& f, int order, 
 double MeshIntegration::integrateOverTriangle(const double& value, int triangleId) const {
     return domain.getTriangleAera(triangleId) * value;
 }
-
 
 double MeshIntegration::integrateOverMesh(const functionType& f, int order) const {
     QuadratureRule quadRule = QuadratureRule::getQuadratureRule(order);

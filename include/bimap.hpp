@@ -4,22 +4,22 @@
 #include <unordered_map>
 #include <stdexcept>
 
-template<typename key1, typename key2>
+template<typename rightKey, typename leftKey>
 class biMapIterator;
 
 /**
- * @brief Provides a double key map similar to what boost::bimap does.
+ * @brief Original implementation of a double key map similar to what boost::bimap does.
  */
-template<typename key1, typename key2>
-class biMap{
+template<typename rightKey, typename leftKey>
+class biMap {
 
-    using iterator = typename std::unordered_map<key1, key2>::const_iterator;
+    using iterator = typename std::unordered_map<rightKey, leftKey>::const_iterator;
 
 // Attributes
 public:
     int size;
-    std::unordered_map<key1, key2> left;
-    std::unordered_map<key2, key1> right;
+    std::unordered_map<rightKey, leftKey> left;
+    std::unordered_map<leftKey, rightKey> right;
 
 // Methods and constructors
     biMap(int s): size(0) {
@@ -34,7 +34,7 @@ public:
         return left.begin();
     }
 
-    void insert(const std::pair<key1, key2>& p) {
+    void insert(const std::pair<rightKey, leftKey>& p) {
         left.insert({p.first, p.second});
         right.insert({p.second, p.first});
         size ++;
@@ -44,39 +44,39 @@ public:
         return size;
     }
 
-    key1 at_second(key2 key) const {
+    rightKey at_right(leftKey key) const {
         return right.at(key);
     }
 
-    key2 at_first(key1 key) const {
+    leftKey at_left(rightKey key) const {
         return left.at(key);
     }
 
-    const biMapIterator<key1, key2> get_iterator() const {
-        return biMapIterator<key1, key2>(this);
+    const biMapIterator<rightKey, leftKey> get_iterator() const {
+        return biMapIterator<rightKey, leftKey>(this);
     }
 };
 
 /**
  * @brief biMap constant iterator - self explanatory 
  */
-template<typename key1, typename key2>
+template<typename rightKey, typename leftKey>
 class biMapIterator{
 
 public:
-    const biMap<key1, key2>* map;
-    typename std::unordered_map<key1, key2>::const_iterator pos;
+    const biMap<rightKey, leftKey>* map;
+    typename std::unordered_map<rightKey, leftKey>::const_iterator pos;
 
-    biMapIterator(const biMap<key1, key2>* b): map(b) {
+    biMapIterator(const biMap<rightKey, leftKey>* b): map(b) {
         if (map == nullptr){throw std::runtime_error{"biMapIterator was initialized with nullptr"};} 
         pos = map->begin();
     }
     
-    key1 get_left() const {
+    rightKey get_left() const {
         return pos->first;
     }
 
-    key2 get_right() const {
+    leftKey get_right() const {
         return pos->second;
     }
     
