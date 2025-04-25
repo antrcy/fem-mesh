@@ -2,6 +2,28 @@ cmake_minimum_required(VERSION 3.21)
 
 project(Mesh)
 
+file(WRITE "build/config_file.txt" 
+"# Config file for FEM solver
+
+# Integration order
+integration_order = 1
+
+# Mesh file (located in meshes/)
+mesh_file = square2d_4elt.msh
+
+# Problem parameters
+source = constant
+boundary = zero
+
+# Solution (optional)
+sol = NONE
+dx_sol = NONE
+dy_sol = NONE
+
+# Plot label
+label = constant"
+)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
@@ -30,10 +52,9 @@ FetchContent_MakeAvailable(Eigen)
 
 include_directories(include)
 
-add_library(MeshUtilities "source/meshclass.cpp")
+add_library(MeshUtilities "source/meshclass.cpp" "source/quadrature.cpp" "source/fem.cpp")
 target_link_libraries(MeshUtilities PUBLIC Eigen3::Eigen)
 
-# main executable
 add_executable(${PROJECT_NAME} "source/main.cpp")
 target_link_libraries(${PROJECT_NAME} PRIVATE MeshUtilities Eigen3::Eigen)
 

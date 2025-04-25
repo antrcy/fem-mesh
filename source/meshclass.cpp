@@ -7,11 +7,12 @@
 #include <unordered_set>
 #include <map>
 #include <unordered_map>
-#include <chrono>
-#include <unistd.h>
+#include <stdexcept>
 
 #include <Eigen/Dense>
+
 #include "meshclass.hpp"
+#include "bimap.hpp"
 
 /**
  * NODE CLASS IMPLEMENTATION
@@ -22,72 +23,62 @@ double Node::distance(const Node& other) const {
                      std::pow(coefficients[1] - other.coefficients[1], 2));
 }
 
-double Node::operator()(int i) const{
-    return coefficients[i];
+double Node::operator()(int localDof) const {
+    return coefficients[localDof];
 }
 
-std::ostream& operator<<(std::ostream& os, const Node& node) {
-    os << "(" << node.coefficients[0] << ", " << node.coefficients[1] << ")";
-    return os;
+bool Node::operator==(const Node& other) const {
+    return (coefficients[0] - other.coefficients[0]) < 1e-6 && coefficients[1] == other.coefficients[1] < 1e-6;
 }
 
+std::ostream& operator<<(std::ostream& out, const Node& node) {
+    out << '(' << node.coefficients[0] << ',' << node.coefficients[1] << ')';
+    return out;
+}
 
 /**
- * TRIANGLE ELEMENT CLASS IMPLEMENTATION
+ * TRIANGLE ELEMENT METHODS (through Mesh)
 */
 
-double TriangleElements::getAera() const {
+double Mesh::getTriangleAera(int identifier) const {
+
+    const TriangleElement& triangle = getElement(identifier);
+
     int a, b, c;
     Eigen::Matrix<double, 3, 3> M3;
-    a = globalNodeId[0]; b = globalNodeId[1]; c = globalNodeId[2];
+    a = triangle[0]; b = triangle[1]; c = triangle[2];
     
-    M3 << 1.0, (*globalNodeTab)[a](0), (*globalNodeTab)[a](1),
-          1.0, (*globalNodeTab)[b](0), (*globalNodeTab)[b](1),
-          1.0, (*globalNodeTab)[c](0), (*globalNodeTab)[c](1);
+    M3 << 1.0, (tabNodes)[a](0), (tabNodes)[a](1),
+          1.0, (tabNodes)[b](0), (tabNodes)[b](1),
+          1.0, (tabNodes)[c](0), (tabNodes)[c](1);
     
     return M3.determinant() / 2.0;
 }
 
-double TriangleElements::getPerimeter() const{
+double Mesh::getTrianglePerimeter(int identifier) const {
+
+    const TriangleElement& triangle = getElement(identifier);
+
     int a, b, c;
-    a = globalNodeId[0]; b = globalNodeId[1]; c = globalNodeId[2];
+    a = triangle[0]; b = triangle[1]; c = triangle[2];
 
-    double T1 = (*globalNodeTab)[a].distance((*globalNodeTab)[b]);
-    double T2 = (*globalNodeTab)[b].distance((*globalNodeTab)[c]);
-    double T3 = (*globalNodeTab)[c].distance((*globalNodeTab)[a]);
+    double perimeter = (tabNodes)[a].distance((tabNodes)[b])
+                     + (tabNodes)[b].distance((tabNodes)[c])
+                     + (tabNodes)[c].distance((tabNodes)[a]);
 
-    return T1 + T2 + T3;
+    return perimeter;
 }
-
-std::ostream& operator<<(std::ostream& os, const TriangleElements& elem) {
-    os << "A = " << (*elem.globalNodeTab)[elem.globalNodeId[0]]
-       << ", B = " << (*elem.globalNodeTab)[elem.globalNodeId[1]]
-       << ", C = " << (*elem.globalNodeTab)[elem.globalNodeId[2]];
-    return os;
-}
-
 
 /**
- * FACET CLASS IMPLEMENTATION
+ * FACET METHODS (through Mesh)
 */
 
-double Facet::length() const {
-    return (*globalNodeTab)[globalNodeId[0]].distance((*globalNodeTab)[globalNodeId[1]]);
+double Mesh::getFacetLength(int identifier) const {
+
+    const Facet& facet = getFacet(identifier);
+
+    return tabNodes[facet[0]].distance(tabNodes[facet[1]]);
 }
-
-std::ostream& operator<<(std::ostream& os, const Facet& facet) {
-    os << "Nodes on facet\n";
-    os << "A = " << facet.globalNodeId[0]
-       << ", B = " << facet.globalNodeId[1] << std::endl;
-
-    os << "Elements on facet\n";
-    os << "Elem1 - " << facet.globalElemId[0]
-       << ", Elem2 - " << facet.globalElemId[1] << std::endl;
-
-    os << "Is boundary facet ? " << facet.isBoundary << std::endl;
-    return os;
-}
-
 
 /**
  * MESH CLASS IMPLEMENTATION
@@ -98,24 +89,51 @@ Mesh::Mesh(std::string path) {
     std::ifstream meshFile(path, std::ios::in);
 
     nbFacets = 0;
+    nbTriangles = 0;
+    nbNodes = 0;
 
     if (meshFile){
         std::string firstlines;
         firstlines.reserve(1048);
         
-        // Extracting mesh nodes
+        // Get the first lines out of the way
         std::getline(meshFile, firstlines);
-        while (firstlines != "$Nodes"){
+        while (firstlines != "$PhysicalNames"){
             std::getline(meshFile, firstlines);
         }
+
+        std::getline(meshFile, firstlines);
 
         std::string lines;
         lines.reserve(1048);
         std::getline(meshFile, lines);
         std::istringstream stream(lines);
 
+        // Get the physical names
+        int dimension; int physicalId; std::string physicalName;
+        while (lines != "$EndPhysicalNames"){
+            stream.clear();
+            stream.str(lines);
+
+            stream >> dimension >> physicalId >> physicalName;
+
+            physicalMarkers.insert({physicalName, physicalId});
+            markerDimension.insert({physicalId, dimension});
+            std::getline(meshFile, lines);
+        }
+
+        while (lines != "$Nodes"){
+            std::getline(meshFile, lines);
+        }
+
+        // Get the nodes
+        std::getline(meshFile, lines);
+
+        stream.clear();
+        stream.str(lines);
+
         stream >> nbNodes;
-        tabNodes.resize(nbNodes);
+        tabNodes.reserve(nbNodes);
 
         std::getline(meshFile, lines);
 
@@ -123,17 +141,15 @@ Mesh::Mesh(std::string path) {
             stream.clear();
             stream.str(lines);
 
-            unsigned int id; double x, y, z;            
+            int id; double x, y, z;            
             stream >> id >> x >> y >> z;
-            id --;
-
-            tabNodes[id] = Node(x, y);
+            
+            tabNodes.push_back(Node(x, y));
 
             std::getline(meshFile, lines);
         }
 
-        // Extracting elements (skipping segments)
-
+        // Extracting elements
         while (lines != "$Elements"){
             std::getline(meshFile, lines);
         }
@@ -144,42 +160,76 @@ Mesh::Mesh(std::string path) {
 
         int Ne;
         stream >> Ne;
-        tabElements.reserve(Ne);
-        nbElements = 0;
+
+        tabTriangle.reserve(Ne);
+        tabFacets.reserve(Ne);
+
+        int facetIndex = 0;
+        int triangleIndex = 0;
 
         std::getline(meshFile, lines);
         while (lines != "$EndElements"){
             stream.clear();
             stream.str(lines);
-            unsigned int id; int marker; int tags;
-            stream >> id >> marker >> tags >> tags >> tags;
+
+            unsigned int id; int marker; int nbTags; int physical;
+            stream >> id >> marker >> nbTags >> physical; 
+
+            for (int i = 1; i < nbTags; i ++){int trash; stream >> trash;}
+
+            if (marker == 1){
+
+                // The element is a segment
+                int p1, p2;
+                stream >> p1 >> p2;
+                const std::array<int, 2> &tab = {--p1, --p2};
+
+                tabFacets.push_back(Facet(tab, true));
+
+                markedFacets[facetIndex] = physical;
+
+                nbFacets ++; facetIndex ++;
+            }
 
             if (marker == 2){
+
+                // The element is a triangle
                 int p1, p2, p3;
                 stream >> p1 >> p2 >> p3;
                 const std::array <int, 3> &tab = {--p1, --p2, --p3};
 
-                tabElements.push_back(TriangleElements(tab, tabNodes));
-                nbElements ++;
+                tabTriangle.push_back(TriangleElement(tab));
+
+                // Build partial connectivity
+                markedElements[triangleIndex] = physical;
+
+                nbTriangles ++; triangleIndex ++;
             }
 
             std::getline(meshFile, lines);
         }
 
+        tabTriangle.shrink_to_fit();
+        tabFacets.shrink_to_fit();
+
         meshFile.close();
     }
 
     else {
-        std::cout << "Could not open " << path << std::endl;
+        throw std::runtime_error{"Could not open " + path};
     }
+}
+
+const std::set<int>& Mesh::getBoundary() const {
+    return boundaryNodes;
 }
 
 void Mesh::addNode(const Node& node) {
     tabNodes.push_back(node);
 }
 
-void Mesh::addElement(const TriangleElements& element) {
-    tabElements.push_back(element);
+void Mesh::addElement(const TriangleElement& element) {
+    tabTriangle.push_back(element);
 }
 
 int Mesh::getNbNodes() const {
@@ -187,77 +237,132 @@ int Mesh::getNbNodes() const {
 }
 
 int Mesh::getNbElements() const {
-    return nbElements;
+    return nbTriangles;
 }
 
 int Mesh::getNbFacets() const {
     return nbFacets;
 }
 
-const Node& Mesh::getNode(int nodeId) const {
-    return tabNodes[nodeId];
+int Mesh::getNbSegments() const {
+    int res = 0;
+    for (const auto& face : tabFacets) {
+        res += face.isSegment;
+    }
+    return res;
 }
 
-const TriangleElements& Mesh::getElement(int elementId) const {
-    return tabElements[elementId];
+const Node& Mesh::getNode(int index) const {
+    return tabNodes[index];
 }
 
-const Facet& Mesh::getFacet(int facetId) const {
-    return tabFacets[facetId];
+const TriangleElement& Mesh::getElement(int index) const {
+    return tabTriangle[index];
+}
+
+const Facet& Mesh::getFacet(int index) const {
+    return tabFacets[index];
+}
+
+std::array<int, 3> Mesh::getNodeFromElem(int index) const {
+    return getElement(index).globalNodeIndex;
+}
+
+const Node& Mesh::getNodeFromElem(int identifier, int localDof) const {
+    return tabNodes[getElement(identifier).globalNodeIndex[localDof]];
 }
 
 void Mesh::buildConnectivity() {
-    tabFacets.clear();
+
+    nodeToElements.clear();
     nodeToFacets.clear();
+    facetToElements.clear();
     elementToFacets.clear();
 
     nodeToElements.reserve(nbNodes);
     nodeToFacets.reserve(nbNodes);
-    elementToFacets.reserve(nbElements);
-
-    nbFacets = 0;
+    elementToFacets.reserve(nbTriangles);
 
     // Temporary container to handle duplicates
-    std::map<std::array<int, 2>, Facet> facetMap;
+    std::map<std::array<int, 2>, std::pair<Facet, int>> facetMap;
+    std::map<int, std::array<int, 2>> facetToElementsTemp;
+
+    for (int i = 0; i < nbFacets; i ++){
+        std::array<int, 2> nodeIndex = swapFaceNodes(tabFacets[i].globalNodeIndex);
+        facetMap[nodeIndex] = {tabFacets[i], i};
+        facetToElementsTemp[i] = {-1, -1};
+    }
 
     // Build facet map
-    int facetId = 0;
-    for (int element = 0; element < nbElements; ++element) {
+    int nextFacetIndex = nbFacets;
+
+    for (int t = 0; t < nbTriangles; ++ t) {
         std::array<int, 3> globalFacet = {-1, -1, -1};
 
-        for (int localFacet = 0; localFacet < 3; ++localFacet) {
-            
-            std::array<int, 2> nodeId(getFaceNodes(tabElements[element], localFacet));
-            // Making sure the facet is oriented
-            swapFaceNodes(nodeId);
+        for (int f = 0; f < 3; ++ f){
+            int facetIndex;
+            std::array<int, 2> nodeIndex(swapFaceNodes(getFaceNodes(tabTriangle[t], f)));
 
-            // Building nodeToElements connectivity
-            nodeToElements[nodeId[0]].insert(element);
-            nodeToElements[nodeId[1]].insert(element);
+            if (facetMap.find(nodeIndex) == facetMap.end()){
+                facetIndex = nextFacetIndex;
+            } else {
+                facetIndex = facetMap.at(nodeIndex).second;
+            }
 
-            if (facetMap.find(nodeId) == facetMap.end()) {
-                facetMap[nodeId] = Facet(nodeId, {element, -1}, tabNodes, facetId);
-                globalFacet[localFacet] = facetId;
+            globalFacet[f] = facetIndex;
 
-                // Building nodeToFacets connectivity
-                nodeToFacets[nodeId[0]].insert(facetId);
-                nodeToFacets[nodeId[1]].insert(facetId);
+            nodeToElements[nodeIndex[0]].insert(t);
+            nodeToElements[nodeIndex[1]].insert(t);
 
-                nbFacets ++; facetId ++;
+            nodeToFacets[nodeIndex[0]].insert(facetIndex);
+            nodeToFacets[nodeIndex[1]].insert(facetIndex);
+
+            if (facetMap.find(nodeIndex) == facetMap.end()){
+                facetMap[nodeIndex] = {Facet(nodeIndex, false), facetIndex};
+                facetToElementsTemp[facetIndex] = {t, -1};
+
+                nbFacets ++; nextFacetIndex ++;
+
+            } else if (facetToElementsTemp.at(facetIndex)[0] == -1){
+                facetToElementsTemp[facetIndex][0] = t;
 
             } else {
-                facetMap[nodeId].setElemId(1, element);
-                globalFacet[localFacet] = facetMap[nodeId].identifier;
+                facetToElementsTemp[facetIndex][1] = t;
             }
         }
-        // Building elementToFacets connectivity
-        elementToFacets[element] = globalFacet;
+
+        elementToFacets[t] = globalFacet;
+    }
+
+
+    // Setting boundary flag
+    for (auto& facet : facetMap) {
+        int currentIndex = facet.second.second;
+
+        if (facetToElementsTemp.at(currentIndex)[0] == -1 ||
+            facetToElementsTemp.at(currentIndex)[1] == -1) {
+                facet.second.first.isBoundary = true;
+        }
     }
 
     // Building facet array
-    tabFacets.resize(facetMap.size());
+    nbFacets = facetMap.size();
+    tabFacets.resize(nbFacets);
+
     for (auto& facet : facetMap) {
-        tabFacets[facet.second.identifier] = facet.second;
+        tabFacets[facet.second.second] = facet.second.first;
+    }
+
+    facetToElements.reserve(nbFacets);
+
+    for (auto& facet : facetToElementsTemp) {
+        facetToElements[facet.first] = facet.second;
+    }
+
+    for (int indexNodes = 0; indexNodes < nbNodes; indexNodes ++) {
+        if (isNodeOnBoundary(indexNodes)) {
+            boundaryNodes.insert(indexNodes);
+        }
     }
 }
 
@@ -269,35 +374,28 @@ std::vector<int> Mesh::getFacetsForNode(int nodeId) const {
     return std::vector<int>(nodeToFacets.at(nodeId).begin(), nodeToFacets.at(nodeId).end());
 }
 
-std::vector<int> Mesh::getElementsForFacets(int facetId) const {
-    std::vector<int> elements;
-    elements.reserve(2);
-
-    if (tabFacets[facetId].globalElemId[0] != -1) {
-        elements.push_back(tabFacets[facetId].globalElemId[0]);
-    } if (tabFacets[facetId].globalElemId[1] != -1) {
-        elements.push_back(tabFacets[facetId].globalElemId[1]);
+std::array<int, 2> Mesh::getElementsForFacets(int facetId) const {
+    if (facetToElements.find(facetId) != facetToElements.end()){
+        return facetToElements.at(facetId);
+    } else {
+        return {-1, -1};
     }
-
-    return elements;
 }
 
-std::vector<int> Mesh::getNeighborTriangles(int triangleId) const {
-    std::vector<int> neighbors;
-    neighbors.reserve(3);
+std::array<int, 3> Mesh::getNeighborTriangles(int triangleId) const {
+    std::array<int, 3> neighbors = {-1, -1, -1};
 
     for (int i = 0; i < 3; ++i) {
         int facetId = elementToFacets.at(triangleId)[i];
 
-        // Copy to simplify
-        std::array<int, 2> neighborElementsOfFacet = {tabFacets[facetId].globalElemId[0], tabFacets[facetId].globalElemId[1]};
+        std::array<int, 2> neighborElementsOfFacet = facetToElements.at(facetId);
 
         if (neighborElementsOfFacet[0] != -1 && neighborElementsOfFacet[0] != triangleId) {
-            neighbors.push_back(neighborElementsOfFacet[0]);
+            neighbors[i] = neighborElementsOfFacet[0];
         } 
         
         if (neighborElementsOfFacet[1] != -1 && neighborElementsOfFacet[1] != triangleId) {
-            neighbors.push_back(neighborElementsOfFacet[1]);
+            neighbors[i] = neighborElementsOfFacet[1];
         }
     }
 
@@ -309,11 +407,11 @@ bool Mesh::isFacetOnBoundary(int facetId) const {
 }
 
 bool Mesh::isNodeOnBoundary(int nodeId) const {
-    bool isOnBoundary = true;
+    int counter = 0;
     for (int facetId : nodeToFacets.at(nodeId)) {
-        isOnBoundary = isOnBoundary && isFacetOnBoundary(facetId);
+        counter += isFacetOnBoundary(facetId);
     }
-    return !isOnBoundary;
+    return (counter >= 2);
 }
 
 bool Mesh::isTriangleOnBoundary(int triangleId) const {
@@ -324,30 +422,72 @@ bool Mesh::isTriangleOnBoundary(int triangleId) const {
     return !isOnBoundary;
 }
 
-void Mesh::printNodes() const{
-    for (auto& node : tabNodes){
-        std::cout << node << std::endl;
+void Mesh::domainSummary() const{
+    std::cout << std::endl;
+
+    std::cout << "---Domain Summary---\n";
+    std::cout << "[Physical Names]\n";
+
+    for (auto it = physicalMarkers.get_iterator(); !it.end(); ++it) {
+
+        std::cout << it.get_left() << " - " << it.get_right();
+
+        int counter = 0;
+        for (const auto& elem : markedElements) {
+            counter += (elem.second == it.get_right());
+        } for (const auto& facet : markedFacets) {
+            counter += (facet.second == it.get_right());
+        }
+
+        std::cout << ": " << counter << std::endl;
     }
+
+    std::cout << "\n[Composition]\n";
+
+    std::cout << " - Number of nodes: " << getNbNodes() << std::endl;
+    std::cout << " - Number of elements: " << getNbElements() << std::endl;
+    std::cout << " - Number of facets: " << getNbFacets() << std::endl;
+    std::cout << " - Number of segments: " << getNbSegments() << std::endl;
+
+    std::cout << "--------------------\n";
 }
 
-void Mesh::printTriangles() const{
-    for (auto& triangle : tabElements){
-        std::cout << triangle << std::endl;
-    }   
+std::vector<int> Mesh::getMarkedElements(const std::string& name) const {
+    std::vector<int> elemID; elemID.reserve(markedElements.size());
+
+    int physicalID = physicalMarkers.at_left(name);
+
+    for (const auto& elem : markedElements){
+        if (elem.second == physicalID) {
+            elemID.push_back(elem.first);
+        }
+    }
+
+    elemID.shrink_to_fit();
+    return elemID;
 }
 
-void Mesh::printFacets() const{
-    for (auto& facet : tabFacets){
-        std::cout << facet << std::endl;
+std::vector<int> Mesh::getMarkedFacet(const std::string& name) const {
+    std::vector<int> facID; facID.reserve(markedFacets.size());
+
+    int physicalID = physicalMarkers.at_left(name);
+
+    for (const auto& face : markedFacets){
+        if (face.second == physicalID) {
+            facID.push_back(face.first);
+        }
     }
+
+    facID.shrink_to_fit();
+    return facID;
 }
 
 double Mesh::meshPerimeter() const{
     double perimeter = 0.0;
 
-    for (auto facet : tabFacets){
-        if (facet.isBoundary){
-            perimeter += facet.length();
+    for (int facetIndex = 0; facetIndex < nbFacets; facetIndex ++) {
+        if (tabFacets[facetIndex].isBoundary){
+            perimeter += getFacetLength(facetIndex);
         }
     }
 
@@ -357,9 +497,108 @@ double Mesh::meshPerimeter() const{
 double Mesh::meshAera() const{
     double aera = 0.0;
 
-    for (auto elements : tabElements){
-        aera += elements.getAera();
+    for (int triIndex = 0; triIndex < nbTriangles; triIndex ++) {
+        aera += getTriangleAera(triIndex);
     }
 
     return aera;
+}
+
+int Mesh::exportToVTK(const std::string& path, const std::string& plotName, const functionType& function) const {
+    std::ofstream ofile(path, std::ios::out);
+
+    if (ofile) {
+        ofile << "# vtk DataFile Version 2.0\n"
+                << "plotToVTK in meshclass\n"
+                << "ASCII\n"
+                << "DATASET UNSTRUCTURED_GRID\n"
+                << "POINTS " << nbNodes << " float\n";
+        
+        for (unsigned int i = 0; i < nbNodes; i ++){
+            std::array<double, 2> coeff = tabNodes[i].coefficients;
+            ofile << coeff[0] << ' ' << coeff[1] << ' ' << 0 << '\n';
+        }
+
+        ofile << "CELLS " << nbTriangles << ' ' << 4 * nbTriangles << '\n';
+        for (unsigned int i = 0; i < nbTriangles; i ++){
+            std::array<int, 3> nodeIndex = tabTriangle[i].globalNodeIndex;
+
+            ofile << 3 << ' ' << nodeIndex[0]
+                       << ' ' << nodeIndex[1]
+                       << ' ' << nodeIndex[2] << '\n';
+        }
+
+        ofile << "CELL_TYPES " << nbTriangles;
+        for (unsigned int i = 0; i < nbTriangles; i ++){ofile << '\n' << 5;}
+
+        if (function != 0){
+            ofile << "\nPOINT_DATA " << nbNodes << '\n'
+                  << "SCALARS " << plotName << " float 1\n"
+                  << "LOOKUP_TABLE default" << '\n';
+
+            for (int i = 0; i < nbNodes; i ++){
+                ofile << function(tabNodes[i](0), tabNodes[i](1)) << '\n';
+            }
+        }
+
+        ofile.close();
+        return 0;
+    }
+
+    ofile.close();
+    return 1;
+}
+
+/**
+ * FUNCTIONSPACE CLASS IMPLEMENTATION
+*/
+
+unsigned int FunctionSpace::connectivity(int elemIndex, int localDof) const {
+    int globalIndex = (domain.getElement(elemIndex)).globalNodeIndex[localDof];
+    return globalIndex;
+}
+
+// FUNCTION ELEMENT
+
+void FunctionSpace::FunctionElement::setZero() {
+    int n = fspace.globalDofs;
+    for (int i = 0; i < n; i ++){
+        data[i] = 0;
+    }
+}
+
+void FunctionSpace::FunctionElement::initialize(const Eigen::VectorXd& dataVector) {
+    if (dataVector.size() != fspace.globalDofs) {
+        throw std::invalid_argument{"Function dof does not match argument size.\n"};
+    }
+
+    for (int i = 0; i < dataVector.size(); i ++) {
+        data[i] = dataVector(i);
+    }
+}
+
+void FunctionSpace::FunctionElement::evaluate(const functionType& expression) {
+    const Mesh& domain = fspace.domain;
+
+    for (int nodeIndex = 0; nodeIndex < domain.getNbNodes(); nodeIndex ++) {
+        const Node& point = domain.getNode(nodeIndex);
+
+        data[nodeIndex] = expression(point(0), point(1));
+    }
+}
+
+void FunctionSpace::FunctionElement::setValue(int nodeIndex, double value) {
+    data[nodeIndex] = value;
+}
+
+void FunctionSpace::FunctionElement::setValue(int elemIndex, int localDof, double value) {
+    data[fspace.connectivity(elemIndex, localDof)] = value;
+}
+
+double FunctionSpace::FunctionElement::getValue(int nodeIndex) const {
+    return data[nodeIndex];
+}
+
+double FunctionSpace::FunctionElement::getValue(int elemIndex, int localDof) const {
+    return data[fspace.connectivity(elemIndex, localDof)];
 }

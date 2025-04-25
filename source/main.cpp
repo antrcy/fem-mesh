@@ -4,58 +4,39 @@
 #include <unistd.h>
 
 #include "meshclass.hpp"
+#include "quadrature.hpp"
+#include "configclass.hpp"
+#include "fem.hpp"
 
-/*
-static int allocations = 0;
 
-void* operator new(std::size_t size) {
-    allocations++;
-    return malloc(size);
-}
-*/
+std::string ConfigClass::PATH = "../meshes/";
 
 int main(int argc, char* argv[]){
+    ConfigClass* conf;
+    if (argc == 2){
+        conf = new ConfigClass(argv[1]);
+    }
 
-    Mesh mesh("../meshes/square2d_4elt.msh");
+    else {
+        std::cout << "WARNING : No config file provided, resorting to default parameters (see doc)\n";
+        conf = new ConfigClass;
+    }
+
+    Mesh mesh(conf->pathToMesh);
+
     mesh.buildConnectivity();
+    mesh.domainSummary();
 
-    /*
-    Mesh mesh("square2d_4elt.msh");
+    FEMSolver solver(mesh, conf->functionF, conf->functionG, conf->integrationOrder);
 
-    std::cout << "Number of nodes: " << mesh.getNbNodes() << std::endl;
-    std::cout << "Number of elements: " << mesh.getNbElements() << std::endl;
-    std::cout << "Number of facets: " << mesh.getNbFacets() << std::endl;
+        solver.matrixAssembly();
+        solver.solveSystemGC();
+        solver.exportSolution("test.vtk", conf->flabel);
 
-    mesh.buildConnectivity();
-
-    mesh.printFacets();
-    mesh.printTriangles();
-    mesh.printNodes();
-
-    for (int elem : mesh.getElementsForNode(4)){
-        std::cout << "Element " << elem << " is connected to node 4" << std::endl;
+    if (conf->solution != 0) {
+        std::cout << "L2 err: " << solver.normL2(conf->solution, conf->integrationOrder) << std::endl;
+        std::cout << "H1 err: " << solver.normH1(conf->solution, conf->dx_solution, conf->dy_solution, conf->integrationOrder) << std::endl;
     }
 
-    for (int facet : mesh.getFacetsForNode(0)){
-        std::cout << "Facet " << facet << " is connected to node 0" << std::endl;
-    }
-
-    for (int elem : mesh.getElementsForFacets(5)){
-        std::cout << "Element " << elem << " is connected to facet 5" << std::endl;
-    }
-
-    */
-
-    //std::cout << "Allocations : " << allocations << std::endl;
-
-    //allocations = 0;
-
-    auto start = std::chrono::steady_clock::now();
-    std::cout << "Perimeter: " << mesh.meshPerimeter() << std::endl;
-    std::cout << "Aera: " << mesh.meshAera() << std::endl;
-    auto end = std::chrono::steady_clock::now();
-    std::cout << "Elapsed time (ms) : " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << std::endl;
-
-    //std::cout << "Allocations : " << allocations << std::endl;
     return 0;
 }
