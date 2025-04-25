@@ -20,10 +20,10 @@ $$
 
 On calcule sa jacobienne pour obtenir :
 
-$$ D T_K = 
+$$
+D T_K = 
 \begin{pmatrix}
     -x_1^1 + x_2^1 & -x_1^1 + x_3^1 \\
-
     -x_1^2 + x_2^2 & -x_1^2 + x_3^2
 \end{pmatrix}
 $$
